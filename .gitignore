@@ -1,0 +1,8 @@
+thirdparty
+_designdocs
+.vscode
+.devcontainer/ca-certificates/*.crt
+node_modules
+.pnpm-store
+dist
+.beefup

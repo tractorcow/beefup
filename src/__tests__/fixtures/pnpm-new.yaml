@@ -1,0 +1,14 @@
+lockfileVersion: '9.0'
+packages:
+  express:
+    version: 4.18.0
+  lodash:
+    version: 4.17.21
+    dev: true
+  axios:
+    version: 1.0.0
+  '@types/node':
+    version: 20.0.0
+    dev: true
+  react:
+    version: 18.2.0

@@ -1,0 +1,21 @@
+{
+  "name": "test-package",
+  "version": "1.0.0",
+  "lockfileVersion": 1,
+  "dependencies": {
+    "express": {
+      "version": "4.17.0"
+    },
+    "axios": {
+      "version": "0.21.0"
+    }
+  },
+  "devDependencies": {
+    "lodash": {
+      "version": "4.17.20"
+    },
+    "@types/node": {
+      "version": "18.0.0"
+    }
+  }
+}

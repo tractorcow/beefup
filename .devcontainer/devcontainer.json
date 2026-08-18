@@ -1,0 +1,13 @@
+{
+	"name": "BeefUp - Node 26 Container",
+	"initializeCommand": "\"${localWorkspaceFolder}/.devcontainer/extract-perimeter81-cert.sh\" || true; touch \"${localEnv:HOME}${localEnv:USERPROFILE}/.npmrc\" 2>/dev/null || true",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"args": {
+			"VARIANT": "26",
+			"PNPM_VERSION": "11.22.0",
+			"SAFE_CHAIN_VERSION": "1.5.15"
+		}
+	},
+	"remoteUser": "node"
+}
