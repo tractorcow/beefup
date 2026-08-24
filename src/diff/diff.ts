@@ -8,6 +8,10 @@ import {
   type ResolutionDiff,
 } from "./types.js";
 
+/**
+ * Compares two lockfile resolutions and returns added, removed, upgraded,
+ * and downgraded package changes for dependencies and devDependencies.
+ */
 export function diffResolutions(
   source: Resolution,
   target: Resolution
@@ -21,6 +25,9 @@ export function diffResolutions(
   };
 }
 
+/**
+ * Diffs two package lists by name, recording adds, removals, and version moves.
+ */
 function diffPackages(source: LockPackage[], target: LockPackage[]): PackageChange[] {
   const sourceMap = new Map(source.map((pkg) => [pkg.name, pkg]));
   const targetMap = new Map(target.map((pkg) => [pkg.name, pkg]));
@@ -64,6 +71,10 @@ function diffPackages(source: LockPackage[], target: LockPackage[]): PackageChan
   return changes;
 }
 
+/**
+ * Classifies a from→to version pair as major/minor/patch and upgrade vs downgrade.
+ * Returns null when either version is not a valid semver string.
+ */
 function getVersionChangeType(
   from: string,
   to: string
@@ -95,6 +106,9 @@ function getVersionChangeType(
   return createVersionChangeInfo(VersionChangeType.Patch, to, from);
 }
 
+/**
+ * Builds version-change metadata with upgrade/downgrade direction from semver order.
+ */
 function createVersionChangeInfo(
   type: VersionChangeType,
   to: string,

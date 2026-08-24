@@ -1,8 +1,12 @@
+import { AlignmentActions } from "../config/types.js";
 import { PackageChangeType, type PackageChange } from "../diff/types.js";
 import { groupByVersionChange } from "../diff/group.js";
 import type { SecurityFinding } from "../security/classify.js";
 import type { StageReport } from "./types.js";
 
+/**
+ * Builds a markdown table for a list of package changes.
+ */
 function formatChangeTable(changes: PackageChange[]): string {
   const rows = [
     "| Package | From Version | To Version |",
@@ -26,6 +30,9 @@ function formatChangeTable(changes: PackageChange[]): string {
   return rows.join("\n");
 }
 
+/**
+ * Formats dependency changes as markdown sections by update kind.
+ */
 function formatChanges(changes: PackageChange[]): string {
   const byType = groupByVersionChange(changes);
   const parts: string[] = [];
@@ -47,6 +54,9 @@ function formatChanges(changes: PackageChange[]): string {
   return parts.join("\n\n");
 }
 
+/**
+ * Formats a markdown section listing security findings, or "None." when empty.
+ */
 function formatFindings(title: string, findings: SecurityFinding[]): string {
   if (findings.length === 0) {
     return `### ${title}\n\nNone.`;
@@ -64,6 +74,9 @@ function formatFindings(title: string, findings: SecurityFinding[]): string {
   return rows.join("\n");
 }
 
+/**
+ * Renders a stage report as markdown for files or stdout.
+ */
 export function renderMarkdown(report: StageReport): string {
   const parts: string[] = [
     "# Beefup upgrade report",
@@ -93,7 +106,7 @@ export function renderMarkdown(report: StageReport): string {
       parts.push(`- **${item.severity}** ${item.message}`);
     }
     for (const item of report.overrides) {
-      parts.push(`- **error** [${item.override}] ${item.message}`);
+      parts.push(`- **${AlignmentActions.Error}** [${item.override}] ${item.message}`);
     }
     for (const item of report.alignment) {
       parts.push(`- **${item.severity}** [${item.group}] ${item.message}`);

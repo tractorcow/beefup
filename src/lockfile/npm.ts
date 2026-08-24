@@ -7,6 +7,9 @@ import type {
   Resolution,
 } from "./types.js";
 
+/**
+ * Derives a package name from an npm lockfile packages key, or null for nested installs.
+ */
 function extractPackageName(key: string): string | null {
   if (key === "") {
     return null;
@@ -23,6 +26,9 @@ function extractPackageName(key: string): string | null {
   return parts.slice(nodeModulesIndex + 1).join("/");
 }
 
+/**
+ * Appends dependency entries from an npm lockfile map into dependency/devDependency lists.
+ */
 function extractDependencies(
   deps: Record<string, NpmLockfileDependency>,
   dependencies: LockPackage[],
@@ -46,6 +52,9 @@ function extractDependencies(
   }
 }
 
+/**
+ * Builds a Resolution from an npm lockfileVersion 1 `dependencies` layout.
+ */
 function resolveVersion1(lockfile: NpmLockfile): Resolution {
   const dependencies: LockPackage[] = [];
   const devDependencies: LockPackage[] = [];
@@ -63,6 +72,9 @@ function resolveVersion1(lockfile: NpmLockfile): Resolution {
   return { dependencies, devDependencies };
 }
 
+/**
+ * Builds a Resolution from an npm lockfileVersion 2/3 `packages` layout.
+ */
 function resolveVersion2Or3(lockfile: NpmLockfile): Resolution {
   const dependencies: LockPackage[] = [];
   const devDependencies: LockPackage[] = [];
@@ -75,6 +87,10 @@ function resolveVersion2Or3(lockfile: NpmLockfile): Resolution {
   return { dependencies, devDependencies };
 }
 
+/**
+ * Parses package-lock.json content into a typed lockfile object.
+ * Throws when the JSON is invalid.
+ */
 export function parseNpmLockfile(content: string): NpmLockfile {
   try {
     return JSON.parse(content) as NpmLockfile;
@@ -85,6 +101,9 @@ export function parseNpmLockfile(content: string): NpmLockfile {
   }
 }
 
+/**
+ * Reads and resolves an npm lockfile on disk into dependency and devDependency lists.
+ */
 export async function resolveNpmLockfile(filePath: string): Promise<Resolution> {
   const parsed = parseNpmLockfile(await readFile(filePath, "utf8"));
   const lockfileVersion = parsed.lockfileVersion ?? 1;
@@ -101,6 +120,9 @@ export async function resolveNpmLockfile(filePath: string): Promise<Resolution> 
   }
 }
 
+/**
+ * Maps direct (non-nested) package names to locked versions for one npm importer path.
+ */
 export function lockedVersionsFromNpm(
   lockfile: NpmLockfile,
   importerDir: string

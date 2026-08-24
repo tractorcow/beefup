@@ -1,4 +1,8 @@
-import { normalizeSeverity, type SecurityFinding } from "./classify.js";
+import {
+  normalizeSeverity,
+  SecuritySources,
+  type SecurityFinding,
+} from "./classify.js";
 
 interface NpmAuditVia {
   source?: number | string;
@@ -19,6 +23,10 @@ interface NpmAuditReport {
   vulnerabilities?: Record<string, NpmAuditVulnerability>;
 }
 
+/**
+ * Parses `npm audit --json` output into normalized SecurityFinding entries.
+ * Returns an empty list when the payload is not valid JSON.
+ */
 export function parseNpmAuditJson(raw: string): SecurityFinding[] {
   let parsed: NpmAuditReport;
   try {
@@ -37,7 +45,7 @@ export function parseNpmAuditJson(raw: string): SecurityFinding[] {
         id: `npm:${packageName}`,
         packageName: vuln.name ?? packageName,
         severity: normalizeSeverity(vuln.severity),
-        source: "npm-audit",
+        source: SecuritySources.NpmAudit,
         title: packageName,
       });
       continue;
@@ -51,7 +59,7 @@ export function parseNpmAuditJson(raw: string): SecurityFinding[] {
         id,
         packageName: via.name ?? vuln.name ?? packageName,
         severity: normalizeSeverity(via.severity ?? vuln.severity),
-        source: "npm-audit",
+        source: SecuritySources.NpmAudit,
         title: via.title,
       });
     }

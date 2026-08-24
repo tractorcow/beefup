@@ -2,10 +2,20 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { printReport, runStage } from "../commands/stage.js";
+import { printReport, runReport } from "../commands/report.js";
+import { runStage } from "../commands/stage.js";
+import {
+  CliCommands,
+  StageStrategies,
+  type ReportFormat,
+} from "../config/types.js";
 import { BeefupError } from "../errors.js";
+import type { StageReport } from "../report/types.js";
 import { parseCliArgs, showHelp } from "./args.js";
 
+/**
+ * Reads the package version from the nearest package.json for `--version`.
+ */
 async function readVersion(): Promise<string> {
   const pkgPath = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
@@ -15,6 +25,21 @@ async function readVersion(): Promise<string> {
   return pkg.version ?? "0.0.0";
 }
 
+/**
+ * Writes a stage/report result to stdout and warns if new CVEs were introduced.
+ */
+function emitReport(report: StageReport, format: ReportFormat): void {
+  process.stdout.write(printReport(report, format));
+  if (report.security.introduced.length > 0) {
+    console.error(
+      `warning: ${report.security.introduced.length} CVE(s) introduced; review .beefup/staged before accept`
+    );
+  }
+}
+
+/**
+ * CLI entrypoint: parses argv, runs stage or report, and returns a process exit code.
+ */
 export async function main(argv = process.argv): Promise<number> {
   try {
     const args = parseCliArgs(argv);
@@ -26,22 +51,30 @@ export async function main(argv = process.argv): Promise<number> {
       console.log(showHelp());
       return 0;
     }
-    if (args.command !== "stage") {
-      throw new BeefupError(`unknown command: ${args.command}`);
+
+    const projectRoot = args.dir ?? process.cwd();
+    if (args.command === CliCommands.Stage) {
+      const report = await runStage({
+        projectRoot,
+        mode: args.mode,
+        strategy: args.strategy ?? StageStrategies.Worktree,
+        format: args.format,
+      });
+      emitReport(report, args.format);
+      return 0;
     }
-    const report = await runStage({
-      projectRoot: args.dir ?? process.cwd(),
-      mode: args.mode,
-      strategy: args.strategy,
-      format: args.format,
-    });
-    process.stdout.write(printReport(report, args.format));
-    if (report.security.introduced.length > 0) {
-      console.error(
-        `warning: ${report.security.introduced.length} CVE(s) introduced; review .beefup/staged before accept`
-      );
+    if (args.command === CliCommands.Report) {
+      const report = await runReport({
+        projectRoot,
+        mode: args.mode,
+        strategy: args.strategy,
+        format: args.format,
+      });
+      emitReport(report, args.format);
+      return 0;
     }
-    return 0;
+
+    throw new BeefupError(`unknown command: ${args.command}`);
   } catch (error) {
     if (error instanceof BeefupError) {
       console.error(`error: ${error.message}`);

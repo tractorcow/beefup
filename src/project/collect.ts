@@ -2,9 +2,13 @@ import { mkdir, rename } from "node:fs/promises";
 import path from "node:path";
 
 import { copyFileTo, pathExists, removePath } from "../fsutil.js";
-import { stagedDir, beefupDir } from "./paths.js";
+import { beefupDir, stagedDir } from "./paths.js";
 import { listWritableRelativePaths } from "./workspace.js";
 
+/**
+ * Copies writable project files from a staging source into `.beefup/staged`.
+ * Uses a temporary directory and renames atomically into place.
+ */
 export async function collectStagedOutputs(
   sourceRoot: string,
   projectRoot: string,

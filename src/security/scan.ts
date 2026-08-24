@@ -1,11 +1,14 @@
 import { BeefupError } from "../errors.js";
 import { resolveCveLiteBin } from "../pm/cve-lite-bin.js";
 import type { ProcessRunner } from "../pm/runner.js";
-import type { PackageManager } from "../project/types.js";
+import { PackageManagers, type PackageManager } from "../project/types.js";
 import type { SecurityFinding } from "./classify.js";
 import { parseCveLiteJson } from "./cve-lite.js";
 import { parseNpmAuditJson } from "./npm-audit.js";
 
+/**
+ * Runs npm/pnpm audit and cve-lite against a project root and merges findings.
+ */
 export async function scanProject(options: {
   root: string;
   packageManager: PackageManager;
@@ -15,7 +18,7 @@ export async function scanProject(options: {
 }): Promise<SecurityFinding[]> {
   const auditArgs = [
     ...options.prefixArgs,
-    ...(options.packageManager === "npm"
+    ...(options.packageManager === PackageManagers.Npm
       ? ["audit", "--json", "--package-lock-only"]
       : ["audit", "--json"]),
   ];

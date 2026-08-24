@@ -5,6 +5,10 @@ import {
   type PackageChange,
 } from "./types.js";
 
+/**
+ * Buckets package changes by major/minor/patch upgrades, plus added, removed,
+ * and downgraded groups for reporting.
+ */
 export function groupByVersionChange(changes: PackageChange[]): GroupedChanges {
   const result: GroupedChanges = {
     major: [],

@@ -2,7 +2,7 @@ import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
 
 import { BeefupError } from "../errors.js";
-import type { PackageManager } from "../project/types.js";
+import { PackageManagers, type PackageManager } from "../project/types.js";
 
 const execFile = promisify(execFileCallback);
 
@@ -11,10 +11,16 @@ export interface ProtectedPm {
   prefixArgs: string[];
 }
 
+/**
+ * Returns the Aikido Safe Chain wrapper binary name for a package manager.
+ */
 export function aikidoBinName(packageManager: PackageManager): string {
-  return packageManager === "npm" ? "aikido-npm" : "aikido-pnpm";
+  return packageManager === PackageManagers.Npm ? "aikido-npm" : "aikido-pnpm";
 }
 
+/**
+ * Resolves an executable on PATH via `which`, or undefined when missing.
+ */
 async function which(bin: string): Promise<string | undefined> {
   try {
     const { stdout } = await execFile("which", [bin], { encoding: "utf8" });
@@ -25,6 +31,9 @@ async function which(bin: string): Promise<string | undefined> {
   }
 }
 
+/**
+ * Locates a Safe Chain–protected package manager binary and prefix args.
+ */
 export async function resolveProtectedPm(
   packageManager: PackageManager
 ): Promise<ProtectedPm> {
@@ -43,6 +52,9 @@ export async function resolveProtectedPm(
   );
 }
 
+/**
+ * Parses the major version number from a package manager `--version` output.
+ */
 function parseMajorVersion(raw: string): number | undefined {
   const match = raw.trim().match(/(\d+)\./);
   if (!match) {
@@ -51,6 +63,9 @@ function parseMajorVersion(raw: string): number | undefined {
   return Number.parseInt(match[1], 10);
 }
 
+/**
+ * Asserts that the resolved npm binary reports major version 12 or higher.
+ */
 export async function assertNpmVersion(pm: ProtectedPm): Promise<void> {
   const { stdout, stderr } = await execFile(pm.bin, [...pm.prefixArgs, "--version"], {
     encoding: "utf8",

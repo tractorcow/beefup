@@ -1,20 +1,30 @@
-import type { UpgradeMode, ReportFormat, StageStrategyName } from "../config/types.js";
+import {
+  isReportFormat,
+  isStageStrategy,
+  isUpgradeMode,
+  ReportFormats,
+  type ReportFormat,
+  type StageStrategyName,
+  type UpgradeMode,
+} from "../config/types.js";
 import { BeefupError } from "../errors.js";
 
 export interface CliArgs {
   command?: string;
   mode?: UpgradeMode;
-  strategy: StageStrategyName;
+  strategy?: StageStrategyName;
   dir?: string;
   format: ReportFormat;
   help: boolean;
   version: boolean;
 }
 
+/**
+ * Parses process argv into typed CLI options for stage/report commands.
+ */
 export function parseCliArgs(argv: string[]): CliArgs {
   const args: CliArgs = {
-    strategy: "worktree",
-    format: "text",
+    format: ReportFormats.Text,
     help: false,
     version: false,
   };
@@ -28,14 +38,14 @@ export function parseCliArgs(argv: string[]): CliArgs {
     } else if (arg === "--mode") {
       const value = argv[i + 1];
       i += 1;
-      if (value !== "same-major" && value !== "latest") {
+      if (!isUpgradeMode(value)) {
         throw new BeefupError(`invalid --mode ${value}; use same-major or latest`);
       }
       args.mode = value;
     } else if (arg === "--strategy") {
       const value = argv[i + 1];
       i += 1;
-      if (value !== "worktree" && value !== "inplace") {
+      if (!isStageStrategy(value)) {
         throw new BeefupError(`invalid --strategy ${value}; use worktree or inplace`);
       }
       args.strategy = value;
@@ -45,7 +55,7 @@ export function parseCliArgs(argv: string[]): CliArgs {
     } else if (arg === "--format") {
       const value = argv[i + 1];
       i += 1;
-      if (value !== "text" && value !== "markdown" && value !== "json") {
+      if (!isReportFormat(value)) {
         throw new BeefupError(`invalid --format ${value}; use text, markdown, or json`);
       }
       args.format = value;
@@ -59,15 +69,22 @@ export function parseCliArgs(argv: string[]): CliArgs {
   return args;
 }
 
+/**
+ * Returns the CLI usage help text printed for `--help` or missing commands.
+ */
 export function showHelp(): string {
   return `beefup - staged, pinned, audited dependency upgrades
 
 USAGE:
-    beefup stage [OPTIONS]
+    beefup <command> [OPTIONS]
+
+COMMANDS:
+    stage     Propose an upgrade into .beefup/staged and write a report
+    report    Regenerate the report for an existing staged upgrade
 
 OPTIONS:
     --mode same-major|latest     Upgrade mode (default: same-major, or project config)
-    --strategy worktree|inplace  Isolation strategy (default: worktree)
+    --strategy worktree|inplace  Isolation strategy for stage (default: worktree)
     --dir <path>                 Project directory (default: cwd)
     --format text|markdown|json  Report format printed to stdout (default: text)
     -h, --help                   Show this help
@@ -77,5 +94,7 @@ EXAMPLES:
     beefup stage
     beefup stage --mode latest --strategy inplace
     beefup stage --format markdown
+    beefup report
+    beefup report --format json
 `;
 }

@@ -1,41 +1,59 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { parseCliArgs } from "./args.js";
+import {
+  CliCommands,
+  ReportFormats,
+  StageStrategies,
+  UpgradeModes,
+} from "../config/types.js";
 import { BeefupError } from "../errors.js";
+import { parseCliArgs } from "./args.js";
 
 describe("parseCliArgs", () => {
-  it("defaults to worktree strategy and text format", () => {
-    const args = parseCliArgs(["node", "beefup", "stage"]);
-    assert.equal(args.command, "stage");
-    assert.equal(args.strategy, "worktree");
-    assert.equal(args.format, "text");
+  it("defaults to text format and leaves strategy unset", () => {
+    const args = parseCliArgs(["node", "beefup", CliCommands.Stage]);
+    assert.equal(args.command, CliCommands.Stage);
+    assert.equal(args.strategy, undefined);
+    assert.equal(args.format, ReportFormats.Text);
     assert.equal(args.mode, undefined);
+  });
+
+  it("parses report command", () => {
+    const args = parseCliArgs([
+      "node",
+      "beefup",
+      CliCommands.Report,
+      "--format",
+      ReportFormats.Json,
+    ]);
+    assert.equal(args.command, CliCommands.Report);
+    assert.equal(args.format, ReportFormats.Json);
   });
 
   it("parses mode, strategy, dir, and format", () => {
     const args = parseCliArgs([
       "node",
       "beefup",
-      "stage",
+      CliCommands.Stage,
       "--mode",
-      "latest",
+      UpgradeModes.Latest,
       "--strategy",
-      "inplace",
+      StageStrategies.Inplace,
       "--dir",
       "/tmp/proj",
       "--format",
-      "markdown",
+      ReportFormats.Markdown,
     ]);
-    assert.equal(args.mode, "latest");
-    assert.equal(args.strategy, "inplace");
+    assert.equal(args.mode, UpgradeModes.Latest);
+    assert.equal(args.strategy, StageStrategies.Inplace);
     assert.equal(args.dir, "/tmp/proj");
-    assert.equal(args.format, "markdown");
+    assert.equal(args.format, ReportFormats.Markdown);
   });
 
   it("rejects invalid strategy", () => {
     assert.throws(
-      () => parseCliArgs(["node", "beefup", "stage", "--strategy", "copy"]),
+      () => parseCliArgs(["node", "beefup", CliCommands.Stage, "--strategy", "copy"]),
       BeefupError
     );
   });

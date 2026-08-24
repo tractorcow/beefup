@@ -1,7 +1,11 @@
+import { AlignmentActions } from "../config/types.js";
 import { PackageChangeType, type PackageChange } from "../diff/types.js";
 import { groupByVersionChange } from "../diff/group.js";
 import type { StageReport } from "./types.js";
 
+/**
+ * Formats a single package change as a plain-text report line.
+ */
 function formatChange(change: PackageChange): string {
   switch (change.type) {
     case PackageChangeType.Added:
@@ -15,6 +19,9 @@ function formatChange(change: PackageChange): string {
   }
 }
 
+/**
+ * Formats a titled section of dependency changes grouped by update kind.
+ */
 function formatChanges(title: string, changes: PackageChange[]): string[] {
   if (changes.length === 0) {
     return [];
@@ -39,6 +46,9 @@ function formatChanges(title: string, changes: PackageChange[]): string[] {
   return parts;
 }
 
+/**
+ * Renders a stage report as plain text for stdout.
+ */
 export function renderText(report: StageReport): string {
   const parts = [
     `Beefup stage (${report.packageManager}, mode=${report.mode}, strategy=${report.strategy})`,
@@ -57,13 +67,17 @@ export function renderText(report: StageReport): string {
     }
   }
 
-  for (const item of report.ranges.filter((finding) => finding.severity === "error")) {
+  for (const item of report.ranges.filter(
+    (finding) => finding.severity === AlignmentActions.Error
+  )) {
     parts.push(`error: ${item.message}`);
   }
   for (const item of report.overrides) {
     parts.push(`error: [${item.override}] ${item.message}`);
   }
-  for (const item of report.alignment.filter((finding) => finding.severity === "error")) {
+  for (const item of report.alignment.filter(
+    (finding) => finding.severity === AlignmentActions.Error
+  )) {
     parts.push(`error: [${item.group}] ${item.message}`);
   }
   for (const warning of report.warnings) {

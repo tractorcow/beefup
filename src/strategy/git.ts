@@ -3,6 +3,9 @@ import { promisify } from "node:util";
 
 const execFile = promisify(execFileCallback);
 
+/**
+ * Runs a git command in cwd and returns trimmed stdout/stderr.
+ */
 export async function runGit(
   args: string[],
   cwd: string
@@ -14,6 +17,9 @@ export async function runGit(
   return { stdout: stdout.trim(), stderr: stderr.trim() };
 }
 
+/**
+ * Returns whether cwd is inside a git working tree.
+ */
 export async function isGitRepo(cwd: string): Promise<boolean> {
   try {
     await runGit(["rev-parse", "--is-inside-work-tree"], cwd);

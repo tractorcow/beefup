@@ -1,0 +1,42 @@
+---
+description: Require named constants for domain string literals instead of inlining
+alwaysApply: true
+---
+
+# Named domain literals
+
+Domain / protocol string values must be declared as named constants and referenced by those identifiers — do not inline the same literal across the codebase.
+
+## Requirements
+
+- Closed sets and repeated protocol values (CLI args, upgrade modes, strategies, report formats, alignment actions, etc.) live as named constants.
+- Prefer a single source of truth next to the type (e.g. `src/config/types.ts`), using `as const` objects so the type is derived from the constants.
+- Comparisons, defaults, CLI parsing, and report metadata must use the identifiers (`UpgradeModes.SameMajor`), not `"same-major"`.
+- When editing a file that still inlines such a literal, introduce or reuse the constant in the same change.
+
+```typescript
+export const UpgradeModes = {
+  SameMajor: "same-major",
+  Latest: "latest",
+} as const;
+export type UpgradeMode = (typeof UpgradeModes)[keyof typeof UpgradeModes];
+```
+
+## Does not require
+
+- One-off literals with no domain meaning (error message prose, log text, paths already covered by helpers)
+- External CLI argv that is not our protocol (e.g. git’s `worktree` subcommand)
+- Package version / lockfile fixture strings in tests that are sample dependency data
+- The **definition site** of the constant itself (the one place the string may appear)
+
+## Examples
+
+```typescript
+// ❌ BAD — inlined protocol literals
+if (name === "inplace") { /* ... */ }
+const strategy = args.strategy ?? "worktree";
+
+// ✅ GOOD — named constants
+if (name === StageStrategies.Inplace) { /* ... */ }
+const strategy = args.strategy ?? StageStrategies.Worktree;
+```

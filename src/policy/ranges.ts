@@ -1,6 +1,10 @@
 import semver from "semver";
 
-import type { BeefupConfig } from "../config/types.js";
+import {
+  AlignmentActions,
+  type AlignmentAction,
+  type BeefupConfig,
+} from "../config/types.js";
 import {
   DIRECT_DEP_FIELDS,
   type PackageJson,
@@ -11,15 +15,21 @@ export interface RangeFinding {
   packageName: string;
   field: string;
   spec: string;
-  severity: "error" | "warn";
+  severity: AlignmentAction;
   message: string;
 }
 
+/**
+ * Returns true when `spec` matches a banned floating range (case-insensitive).
+ */
 function isBanned(spec: string, banned: string[]): boolean {
   const trimmed = spec.trim().toLowerCase();
   return banned.some((item) => item.toLowerCase() === trimmed);
 }
 
+/**
+ * Returns true when `spec` is a semver range rather than an exact version.
+ */
 function isLooseRange(spec: string): boolean {
   if (semver.valid(spec)) {
     return false;
@@ -27,6 +37,9 @@ function isLooseRange(spec: string): boolean {
   return Boolean(semver.validRange(spec));
 }
 
+/**
+ * Finds banned and non-exact dependency range issues in a package.json.
+ */
 export function findRangeIssues(
   pkg: PackageJson,
   config: BeefupConfig,
@@ -47,7 +60,7 @@ export function findRangeIssues(
           packageName: name,
           field: `${fromLabel}#${field}`,
           spec,
-          severity: "error",
+          severity: AlignmentActions.Error,
           message: `${name} uses banned range "${spec}"`,
         });
         continue;
@@ -57,7 +70,7 @@ export function findRangeIssues(
           packageName: name,
           field: `${fromLabel}#${field}`,
           spec,
-          severity: "warn",
+          severity: AlignmentActions.Warn,
           message: `${name} is not exact-pinned ("${spec}")`,
         });
       }
