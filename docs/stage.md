@@ -69,7 +69,7 @@ Reports are written separately under `.beefup/report`:
 
 Package diffs split optional/platform packages into their own section, bold direct names and italicize transitive ones, use a single Version column for added/removed, and omit path-only churn (same unique versions, different install paths). Meta-vulns from npm audit are kept and labeled `transitive (via …)` instead of blank references. **Unresolved** findings are still open after the upgrade (formerly called retained).
 
-Stdout prints the report in `--format` (`text` by default). Diff the live project against `.beefup/staged` to review the proposal. Tweak pins or overrides in the live project and run `beefup stage` again until the proposal is acceptable. Use `beefup report` to refresh `.beefup/report` (and stdout) after changing scanners or policy without re-staging.
+Stdout prints the report in `--format` (`text` by default). Diff the live project against `.beefup/staged` to review the proposal. Tweak pins or overrides in the live project and run `beefup stage` again until the proposal is acceptable. Use `beefup report` to refresh `.beefup/report` (and stdout) after changing scanners or policy without re-staging. When the proposal is acceptable, run `beefup accept` to apply it.
 
 ## Project config
 
@@ -98,4 +98,4 @@ Defaults: mode `same-major`, ban `latest` and `*`, prefer exact pins, alignment 
 
 Stage **fails** when Safe Chain is missing, lockfile regeneration fails, `latest` or `*` remain after re-pin, or an override pin sits below a version the lockfile requires. Alignment mismatches fail unless configured to warn.
 
-Leftover loose ranges (for example `^1.2.3`) warn when `preferExact` is true. Introduced CVEs are printed loudly and listed in the report; they do **not** fail stage. Review `.beefup/staged` before any later apply step.
+Leftover loose ranges (for example `^1.2.3`) warn when `preferExact` is true. Introduced CVEs are printed loudly and listed in the report; they do **not** fail stage. Review `.beefup/staged` before `beefup accept`.

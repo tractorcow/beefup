@@ -47,9 +47,10 @@ export const BannedRangeTags = {
 export const CliCommands = {
   Stage: "stage",
   Report: "report",
+  Accept: "accept",
 } as const;
 
-/** CLI command name (`stage` or `report`). */
+/** CLI command name (`stage`, `report`, or `accept`). */
 export type CliCommand = (typeof CliCommands)[keyof typeof CliCommands];
 
 /**

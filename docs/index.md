@@ -2,11 +2,12 @@
 
 Beefup proposes npm and pnpm dependency upgrades without applying them. It rewrites version constraints, regenerates a lockfile without installing packages or running lifecycle scripts, then writes the result under `.beefup/staged` for review.
 
-The live project is left unchanged. Applying a staged upgrade (`beefup accept`) is not available yet.
+The live project is left unchanged until you run `beefup accept`.
 
 ## Contents
 
 - [Staging](stage.md) — `beefup stage` / `beefup report`, strategies, and project config
+- [Accept](accept.md) — `beefup accept`, applying the staged upgrade and frozen install
 - [Install and update](../README.md) — global install from a git checkout (not npmjs.com)
 
 ## Requirements

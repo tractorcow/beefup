@@ -8,7 +8,7 @@ import {
   UpgradeModes,
 } from "../config/types.js";
 import { BeefupError } from "../errors.js";
-import { parseCliArgs } from "./args.js";
+import { parseCliArgs, showHelp } from "./args.js";
 
 describe("parseCliArgs", () => {
   it("defaults to text format and leaves strategy unset", () => {
@@ -29,6 +29,12 @@ describe("parseCliArgs", () => {
     ]);
     assert.equal(args.command, CliCommands.Report);
     assert.equal(args.format, ReportFormats.Json);
+  });
+
+  it("parses accept command", () => {
+    const args = parseCliArgs(["node", "beefup", CliCommands.Accept, "--dir", "/tmp/proj"]);
+    assert.equal(args.command, CliCommands.Accept);
+    assert.equal(args.dir, "/tmp/proj");
   });
 
   it("parses mode, strategy, dir, and format", () => {
@@ -56,5 +62,9 @@ describe("parseCliArgs", () => {
       () => parseCliArgs(["node", "beefup", CliCommands.Stage, "--strategy", "copy"]),
       BeefupError
     );
+  });
+
+  it("lists accept in help text", () => {
+    assert.match(showHelp(), new RegExp(`\\b${CliCommands.Accept}\\b`));
   });
 });

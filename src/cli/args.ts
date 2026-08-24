@@ -1,8 +1,11 @@
 import {
+  CliCommands,
   isReportFormat,
   isStageStrategy,
   isUpgradeMode,
   ReportFormats,
+  StageStrategies,
+  UpgradeModes,
   type ReportFormat,
   type StageStrategyName,
   type UpgradeMode,
@@ -20,7 +23,7 @@ export interface CliArgs {
 }
 
 /**
- * Parses process argv into typed CLI options for stage/report commands.
+ * Parses process argv into typed CLI options for stage, report, and accept.
  */
 export function parseCliArgs(argv: string[]): CliArgs {
   const args: CliArgs = {
@@ -79,22 +82,24 @@ USAGE:
     beefup <command> [OPTIONS]
 
 COMMANDS:
-    stage     Propose an upgrade into .beefup/staged and write a report
-    report    Regenerate the report for an existing staged upgrade
+    ${CliCommands.Stage}     Propose an upgrade into .beefup/staged and write a report
+    ${CliCommands.Report}    Regenerate the report for an existing staged upgrade
+    ${CliCommands.Accept}    Apply the staged upgrade to the live project and install from the lockfile
 
 OPTIONS:
-    --mode same-major|latest     Upgrade mode (default: same-major, or project config)
-    --strategy worktree|inplace  Isolation strategy for stage (default: worktree)
+    --mode ${UpgradeModes.SameMajor}|${UpgradeModes.Latest}     Upgrade mode (default: ${UpgradeModes.SameMajor}, or project config)
+    --strategy ${StageStrategies.Worktree}|${StageStrategies.Inplace}  Isolation strategy for ${CliCommands.Stage} (default: ${StageStrategies.Worktree})
     --dir <path>                 Project directory (default: cwd)
-    --format text|markdown|json  Report format printed to stdout (default: text)
+    --format ${ReportFormats.Text}|${ReportFormats.Markdown}|${ReportFormats.Json}  Report format printed to stdout (default: ${ReportFormats.Text})
     -h, --help                   Show this help
     -v, --version                Show version
 
 EXAMPLES:
-    beefup stage
-    beefup stage --mode latest --strategy inplace
-    beefup stage --format markdown
-    beefup report
-    beefup report --format json
+    beefup ${CliCommands.Stage}
+    beefup ${CliCommands.Stage} --mode ${UpgradeModes.Latest} --strategy ${StageStrategies.Inplace}
+    beefup ${CliCommands.Stage} --format ${ReportFormats.Markdown}
+    beefup ${CliCommands.Report}
+    beefup ${CliCommands.Report} --format ${ReportFormats.Json}
+    beefup ${CliCommands.Accept}
 `;
 }

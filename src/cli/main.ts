@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { runAccept } from "../commands/accept.js";
 import { printReport, runReport } from "../commands/report.js";
 import { runStage } from "../commands/stage.js";
 import {
@@ -38,7 +39,7 @@ function emitReport(report: StageReport, format: ReportFormat): void {
 }
 
 /**
- * CLI entrypoint: parses argv, runs stage or report, and returns a process exit code.
+ * CLI entrypoint: parses argv, runs stage, report, or accept, and returns a process exit code.
  */
 export async function main(argv = process.argv): Promise<number> {
   try {
@@ -71,6 +72,16 @@ export async function main(argv = process.argv): Promise<number> {
         format: args.format,
       });
       emitReport(report, args.format);
+      return 0;
+    }
+    if (args.command === CliCommands.Accept) {
+      const result = await runAccept({ projectRoot });
+      process.stdout.write(
+        `Accepted staged upgrade. Applied ${result.copied.join(", ")} and installed from the frozen lockfile (${result.packageManager}).\n`
+      );
+      for (const warning of result.warnings) {
+        console.error(`warning: ${warning}`);
+      }
       return 0;
     }
 

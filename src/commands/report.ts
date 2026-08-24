@@ -13,15 +13,15 @@ import {
   type UpgradeMode,
 } from "../config/types.js";
 import { annotatePackageChanges, diffResolutions } from "../diff/diff.js";
-import { BeefupError } from "../errors.js";
 import { pathExists, readJsonFile } from "../fsutil.js";
 import { resolveLockfile } from "../lockfile/resolve.js";
 import { defaultProcessRunner, type ProcessRunner } from "../pm/runner.js";
 import { assertNpmVersion, resolveProtectedPm } from "../pm/safe-chain.js";
 import { assertPolicy, evaluatePolicy } from "../policy/evaluate.js";
+import { requireStagedUpgrade } from "../project/collect.js";
 import { detectProject } from "../project/detect.js";
 import { collectDirectDependencyNames } from "../project/direct-deps.js";
-import { reportDir, stagedDir } from "../project/paths.js";
+import { reportDir } from "../project/paths.js";
 import { PackageManagers } from "../project/types.js";
 import { renderMarkdown } from "../report/markdown.js";
 import { renderText } from "../report/text.js";
@@ -45,15 +45,9 @@ export async function runReport(options: ReportOptions): Promise<StageReport> {
   const projectRoot = path.resolve(options.projectRoot);
   const runner = options.runner ?? defaultProcessRunner;
   const project = await detectProject(projectRoot);
-  const staged = stagedDir(projectRoot);
+  const staged = await requireStagedUpgrade(projectRoot, project.lockfileName);
   const reports = reportDir(projectRoot);
   const stagedLock = path.join(staged, project.lockfileName);
-
-  if (!(await pathExists(stagedLock))) {
-    throw new BeefupError(
-      `no staged lockfile at ${path.relative(projectRoot, stagedLock) || stagedLock}; run beefup stage first`
-    );
-  }
 
   const previous = await readPreviousReport(reports);
   const config = await loadConfig(
