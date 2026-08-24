@@ -21,8 +21,10 @@ import { assertPolicy, evaluatePolicy } from "../policy/evaluate.js";
 import { requireStagedUpgrade } from "../project/collect.js";
 import { detectProject } from "../project/detect.js";
 import { collectDirectDependencyNames } from "../project/direct-deps.js";
-import { reportDir } from "../project/paths.js";
+import { reportDir, ReportFileNames } from "../project/paths.js";
 import { PackageManagers } from "../project/types.js";
+import { ansiColorEnabled } from "../report/ansi.js";
+import { renderHtml } from "../report/html.js";
 import { renderMarkdown } from "../report/markdown.js";
 import { renderText } from "../report/text.js";
 import type { StageReport } from "../report/types.js";
@@ -39,7 +41,7 @@ export interface ReportOptions {
 
 /**
  * Regenerates the upgrade report for an existing `.beefup/staged` proposal.
- * Writes markdown and JSON under `.beefup/report`.
+ * Writes HTML and JSON under `.beefup/report`.
  */
 export async function runReport(options: ReportOptions): Promise<StageReport> {
   const projectRoot = path.resolve(options.projectRoot);
@@ -112,9 +114,13 @@ export async function runReport(options: ReportOptions): Promise<StageReport> {
   };
 
   await mkdir(reports, { recursive: true });
-  await writeFile(path.join(reports, "REPORT.md"), renderMarkdown(report), "utf8");
   await writeFile(
-    path.join(reports, "report.json"),
+    path.join(reports, ReportFileNames.Html),
+    renderHtml(report),
+    "utf8"
+  );
+  await writeFile(
+    path.join(reports, ReportFileNames.Json),
     `${JSON.stringify(report, null, 2)}\n`,
     "utf8"
   );
@@ -124,7 +130,7 @@ export async function runReport(options: ReportOptions): Promise<StageReport> {
 }
 
 /**
- * Formats a stage report for stdout as text, markdown, or JSON.
+ * Formats a stage report for stdout as color, text, markdown, JSON, or HTML.
  */
 export function printReport(report: StageReport, format: ReportFormat): string {
   if (format === ReportFormats.Json) {
@@ -133,6 +139,12 @@ export function printReport(report: StageReport, format: ReportFormat): string {
   if (format === ReportFormats.Markdown) {
     return renderMarkdown(report);
   }
+  if (format === ReportFormats.Html) {
+    return renderHtml(report);
+  }
+  if (format === ReportFormats.Color) {
+    return renderText(report, { color: ansiColorEnabled() });
+  }
   return renderText(report);
 }
 
@@ -140,7 +152,7 @@ export function printReport(report: StageReport, format: ReportFormat): string {
  * Loads the previous report.json if present, otherwise returns undefined.
  */
 async function readPreviousReport(reports: string): Promise<StageReport | undefined> {
-  const reportPath = path.join(reports, "report.json");
+  const reportPath = path.join(reports, ReportFileNames.Json);
   if (!(await pathExists(reportPath))) {
     return undefined;
   }

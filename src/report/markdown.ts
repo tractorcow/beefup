@@ -7,24 +7,13 @@ import {
 import type { SecurityFinding } from "../security/classify.js";
 import { META_VULN_TITLE } from "../security/npm-audit.js";
 import { formatRefsMarkdown } from "../security/refs.js";
+import {
+  packageChangeCounts,
+  policyIssueCount,
+  SecuritySectionIntros,
+  SecuritySectionTitles,
+} from "./shared.js";
 import type { StageReport } from "./types.js";
-
-/** Display titles for security finding buckets in the markdown report. */
-const SecuritySectionTitles = {
-  Introduced: "Introduced",
-  Unresolved: "Unresolved",
-  Fixed: "Fixed",
-} as const;
-
-/** Short blurbs explaining each security section under its heading. */
-const SecuritySectionIntros = {
-  Introduced:
-    "New findings that appear only after this staged upgrade. Review before accept — these are regressions.",
-  Unresolved:
-    "Findings still present after the upgrade. They were not fixed by this proposal and remain open risk.",
-  Fixed:
-    "Findings present before the upgrade that no longer appear afterward. Cleared by this staged proposal.",
-} as const;
 
 /**
  * Builds a markdown table for changed packages (from/to version columns).
@@ -181,30 +170,6 @@ function formatFindings(
  */
 function formatSecuritySections(sections: string[]): string {
   return sections.filter((section) => section.length > 0).join("\n\n");
-}
-
-/**
- * Counts package changes across dependencies and devDependencies.
- */
-function packageChangeCounts(report: StageReport): {
-  changed: number;
-  added: number;
-  removed: number;
-} {
-  const deps = groupByChangeType(report.diff.dependencies);
-  const dev = groupByChangeType(report.diff.devDependencies);
-  return {
-    changed: deps.changed.length + dev.changed.length,
-    added: deps.added.length + dev.added.length,
-    removed: deps.removed.length + dev.removed.length,
-  };
-}
-
-/**
- * Counts policy findings for the summary section.
- */
-function policyIssueCount(report: StageReport): number {
-  return report.ranges.length + report.overrides.length + report.alignment.length;
 }
 
 /**

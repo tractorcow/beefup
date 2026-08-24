@@ -95,7 +95,7 @@ See [docs/index.md](docs/index.md), [staging](docs/stage.md), and [accept](docs/
 ```sh
 beefup stage
 beefup stage --mode latest --strategy inplace
-beefup stage --format markdown
+beefup stage --format html
 beefup report
 beefup accept
 ```

@@ -38,7 +38,7 @@ beefup report --format markdown
 | `--mode` | `same-major`, `latest` | `same-major`, or `beefup.mode` in project config |
 | `--strategy` | `worktree`, `inplace` | `worktree` |
 | `--dir` | path | current working directory |
-| `--format` | `text`, `markdown`, `json` | `text` (stdout; files are always written) |
+| `--format` | `color`, `text`, `markdown`, `json`, `html` | `color` (stdout; files are always HTML + JSON) |
 
 `--mode` overrides project config. `same-major` rewrites pins to `^<current>`. `latest` rewrites them to `>=<current>`. After lockfile regeneration, specs are re-pinned to exact versions.
 
@@ -64,12 +64,12 @@ After a successful stage, `.beefup/staged` contains only the proposed project fi
 
 Reports are written separately under `.beefup/report`:
 
-- `REPORT.md` — Summary (counts, beefup version, timestamp) → Security (Introduced → Unresolved → Fixed, with short section intros) → Policy → collapsible package diffs (`<details>`) → Legend / paths
+- `REPORT.html` — Summary (counts, beefup version, timestamp) → Security (Introduced → Unresolved → Fixed, with colour-coded severity and version diffs) → Policy → collapsible package diffs → Legend / paths
 - `report.json`
 
-Package diffs split optional/platform packages into their own section, bold direct names and italicize transitive ones, use a single Version column for added/removed, and omit path-only churn (same unique versions, different install paths). Meta-vulns from npm audit are kept and labeled `transitive (via …)` instead of blank references. **Unresolved** findings are still open after the upgrade (formerly called retained).
+Package diffs split optional/platform packages into their own section, bold direct names and italicize transitive ones, use a single Version column for added/removed, and omit path-only churn (same unique versions, different install paths). Meta-vulns from npm audit are kept and labeled `transitive (via …)` instead of blank references. **Unresolved** findings are still open after the upgrade (formerly called retained). From-versions are shown in red (struck through in HTML); to-versions in green.
 
-Stdout prints the report in `--format` (`text` by default). Diff the live project against `.beefup/staged` to review the proposal. Tweak pins or overrides in the live project and run `beefup stage` again until the proposal is acceptable. Use `beefup report` to refresh `.beefup/report` (and stdout) after changing scanners or policy without re-staging. When the proposal is acceptable, run `beefup accept` to apply it.
+Stdout prints the report in `--format` (`color` by default: ANSI severity and version colours on a TTY; `NO_COLOR` or a non-TTY stdout falls back to plain text). Use `--format text` for uncoloured output, or `--format html` / `markdown` / `json` for those encodings. Diff the live project against `.beefup/staged` to review the proposal. Tweak pins or overrides in the live project and run `beefup stage` again until the proposal is acceptable. Use `beefup report` to refresh `.beefup/report` (and stdout) after changing scanners or policy without re-staging. When the proposal is acceptable, run `beefup accept` to apply it.
 
 ## Project config
 

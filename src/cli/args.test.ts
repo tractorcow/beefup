@@ -11,11 +11,11 @@ import { BeefupError } from "../errors.js";
 import { parseCliArgs, showHelp } from "./args.js";
 
 describe("parseCliArgs", () => {
-  it("defaults to text format and leaves strategy unset", () => {
+  it("defaults to color format and leaves strategy unset", () => {
     const args = parseCliArgs(["node", "beefup", CliCommands.Stage]);
     assert.equal(args.command, CliCommands.Stage);
     assert.equal(args.strategy, undefined);
-    assert.equal(args.format, ReportFormats.Text);
+    assert.equal(args.format, ReportFormats.Color);
     assert.equal(args.mode, undefined);
   });
 
@@ -66,5 +66,11 @@ describe("parseCliArgs", () => {
 
   it("lists accept in help text", () => {
     assert.match(showHelp(), new RegExp(`\\b${CliCommands.Accept}\\b`));
+  });
+
+  it("lists color and html report formats in help", () => {
+    const help = showHelp();
+    assert.match(help, new RegExp(`\\b${ReportFormats.Color}\\b`));
+    assert.match(help, new RegExp(`\\b${ReportFormats.Html}\\b`));
   });
 });

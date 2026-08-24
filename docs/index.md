@@ -1,6 +1,6 @@
 # Beefup documentation
 
-Beefup proposes npm and pnpm dependency upgrades without applying them. It rewrites version constraints, regenerates a lockfile without installing packages or running lifecycle scripts, then writes the result under `.beefup/staged` for review.
+Beefup proposes npm and pnpm dependency upgrades without applying them. It rewrites version constraints, regenerates a lockfile without installing packages or running lifecycle scripts, then writes the result under `.beefup/staged` for review. The human-readable report is `.beefup/report/REPORT.html`; stdout defaults to colour.
 
 The live project is left unchanged until you run `beefup accept`.
 

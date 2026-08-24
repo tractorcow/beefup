@@ -19,9 +19,11 @@ export type StageStrategyName =
 
 /** Closed set of report formats written to stdout. */
 export const ReportFormats = {
+  Color: "color",
   Text: "text",
   Markdown: "markdown",
   Json: "json",
+  Html: "html",
 } as const;
 
 /** Format used when printing a stage/report result to stdout. */
@@ -76,9 +78,8 @@ export function isStageStrategy(value: unknown): value is StageStrategyName {
  */
 export function isReportFormat(value: unknown): value is ReportFormat {
   return (
-    value === ReportFormats.Text ||
-    value === ReportFormats.Markdown ||
-    value === ReportFormats.Json
+    typeof value === "string" &&
+    (Object.values(ReportFormats) as string[]).includes(value)
   );
 }
 

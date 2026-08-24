@@ -24,6 +24,12 @@ export function reportDir(projectRoot: string): string {
   return path.join(beefupDir(projectRoot), "report");
 }
 
+/** File names written under `.beefup/report`. */
+export const ReportFileNames = {
+  Html: "REPORT.html",
+  Json: "report.json",
+} as const;
+
 /**
  * Returns the absolute path to the git worktree working directory.
  */

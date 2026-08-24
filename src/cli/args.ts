@@ -27,7 +27,7 @@ export interface CliArgs {
  */
 export function parseCliArgs(argv: string[]): CliArgs {
   const args: CliArgs = {
-    format: ReportFormats.Text,
+    format: ReportFormats.Color,
     help: false,
     version: false,
   };
@@ -59,7 +59,9 @@ export function parseCliArgs(argv: string[]): CliArgs {
       const value = argv[i + 1];
       i += 1;
       if (!isReportFormat(value)) {
-        throw new BeefupError(`invalid --format ${value}; use text, markdown, or json`);
+        throw new BeefupError(
+          `invalid --format ${value}; use ${Object.values(ReportFormats).join(", ")}`
+        );
       }
       args.format = value;
     } else if (!arg.startsWith("-") && !args.command) {
@@ -90,14 +92,14 @@ OPTIONS:
     --mode ${UpgradeModes.SameMajor}|${UpgradeModes.Latest}     Upgrade mode (default: ${UpgradeModes.SameMajor}, or project config)
     --strategy ${StageStrategies.Worktree}|${StageStrategies.Inplace}  Isolation strategy for ${CliCommands.Stage} (default: ${StageStrategies.Worktree})
     --dir <path>                 Project directory (default: cwd)
-    --format ${ReportFormats.Text}|${ReportFormats.Markdown}|${ReportFormats.Json}  Report format printed to stdout (default: ${ReportFormats.Text})
+    --format ${Object.values(ReportFormats).join("|")}  Report format printed to stdout (default: ${ReportFormats.Color})
     -h, --help                   Show this help
     -v, --version                Show version
 
 EXAMPLES:
     beefup ${CliCommands.Stage}
     beefup ${CliCommands.Stage} --mode ${UpgradeModes.Latest} --strategy ${StageStrategies.Inplace}
-    beefup ${CliCommands.Stage} --format ${ReportFormats.Markdown}
+    beefup ${CliCommands.Stage} --format ${ReportFormats.Html}
     beefup ${CliCommands.Report}
     beefup ${CliCommands.Report} --format ${ReportFormats.Json}
     beefup ${CliCommands.Accept}

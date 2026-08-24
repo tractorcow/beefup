@@ -14,7 +14,10 @@ import { PackageChangeTypes } from "../diff/types.js";
 import { BeefupError } from "../errors.js";
 import { writeJsonFile } from "../fsutil.js";
 import type { ProcessRunner } from "../pm/runner.js";
+import { BEEFUP_DIR, ReportFileNames } from "../project/paths.js";
 import { PackageManagers } from "../project/types.js";
+import { Ansi, ansiForSeverity, paint } from "../report/ansi.js";
+import { renderHtml } from "../report/html.js";
 import { renderMarkdown } from "../report/markdown.js";
 import { renderText } from "../report/text.js";
 import type { StageReport } from "../report/types.js";
@@ -58,7 +61,7 @@ packages:
 `
   );
 
-  const staged = path.join(dir, ".beefup", "staged");
+  const staged = path.join(dir, BEEFUP_DIR, "staged");
   await writeJsonFile(path.join(staged, "package.json"), {
     name: "demo",
     version: "1.0.0",
@@ -78,7 +81,7 @@ packages:
     version: 1.3.0
 `
   );
-  await writeJsonFile(path.join(dir, ".beefup", "report", "report.json"), {
+  await writeJsonFile(path.join(dir, BEEFUP_DIR, "report", ReportFileNames.Json), {
     mode: UpgradeModes.Latest,
     strategy: StageStrategies.Inplace,
     packageManager: PackageManagers.Pnpm,
@@ -92,7 +95,7 @@ packages:
 }
 
 describe("runReport", () => {
-  it("regenerates REPORT.md and report.json from an existing staged upgrade", async () => {
+  it("regenerates REPORT.html and report.json from an existing staged upgrade", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-report-"));
     await seedStagedProject(dir);
     try {
@@ -120,25 +123,31 @@ describe("runReport", () => {
       assert.ok(report.generatedAt);
       assert.ok(report.beefupVersion);
 
-      const markdown = await readFile(path.join(dir, ".beefup", "report", "REPORT.md"), "utf8");
-      assert.match(markdown, /## Summary/);
-      assert.match(markdown, /## Security/);
-      assert.match(markdown, /\*\*leftpad\*\*/);
-      assert.match(markdown, /## Legend/);
-      assert.match(markdown, /\.beefup\/staged/);
-      assert.match(markdown, /Beefup: `/);
-      assert.match(markdown, /Generated: `/);
-      const summaryIdx = markdown.indexOf("## Summary");
-      const securityIdx = markdown.indexOf("## Security");
-      const depsIdx = markdown.indexOf("## Dependencies");
-      const legendIdx = markdown.indexOf("## Legend");
+      const html = await readFile(
+        path.join(dir, BEEFUP_DIR, "report", ReportFileNames.Html),
+        "utf8"
+      );
+      assert.match(html, /<h2>Summary<\/h2>/);
+      assert.match(html, /<h2>Security<\/h2>/);
+      assert.match(html, /<strong>leftpad<\/strong>/);
+      assert.match(html, /<h2>Legend<\/h2>/);
+      assert.match(html, /\.beefup\/staged/);
+      assert.match(html, /Beefup:/);
+      assert.match(html, /Generated:/);
+      const summaryIdx = html.indexOf("<h2>Summary</h2>");
+      const securityIdx = html.indexOf("<h2>Security</h2>");
+      const depsIdx = html.indexOf("<h2>Dependencies</h2>");
+      const legendIdx = html.indexOf("<h2>Legend</h2>");
       assert.ok(summaryIdx >= 0 && securityIdx > summaryIdx);
       assert.ok(depsIdx < 0 || depsIdx > securityIdx);
       assert.ok(legendIdx > securityIdx);
-      assert.match(markdown, /<details>/);
-      assert.match(markdown, /<summary>Changed Packages \(1\)<\/summary>/);
+      assert.match(html, /<details open>/);
+      assert.match(html, /Changed Packages \(1\)/);
       const json = JSON.parse(
-        await readFile(path.join(dir, ".beefup", "report", "report.json"), "utf8")
+        await readFile(
+          path.join(dir, BEEFUP_DIR, "report", ReportFileNames.Json),
+          "utf8"
+        )
       ) as StageReport;
       assert.equal(json.strategy, StageStrategies.Inplace);
       assert.ok(json.generatedAt);
@@ -254,6 +263,44 @@ describe("runReport", () => {
     assert.match(text, /\[optional\].*fsevents/);
     assert.match(text, /Legend: \[D\]=direct, \[T\]=transitive/);
     assert.match(text, /transitive \(via lodash\)/);
+    assert.equal(text.includes(Ansi.Red), false);
+
+    const colored = renderText(report, { color: true });
+    assert.ok(colored.includes(`${Ansi.Red}1.0.0${Ansi.Reset}`));
+    assert.ok(colored.includes(`${Ansi.Green}1.3.0${Ansi.Reset}`));
+    assert.ok(
+      colored.includes(
+        paint(ansiForSeverity(FindingSeverities.High), FindingSeverities.High, true)
+      )
+    );
+
+    const html = renderHtml(report);
+    assert.match(html, /<!DOCTYPE html>/);
+    assert.match(html, /class="ver-from"/);
+    assert.match(html, /class="ver-to"/);
+    assert.match(html, /class="badge sev-high"/);
+    assert.match(html, /<strong>leftpad<\/strong>/);
+    assert.match(html, /<em>fsevents<\/em>/);
+    assert.match(html, /<strong>react<\/strong>/);
+    assert.match(html, /<em>axios<\/em>/);
+    assert.match(html, /transitive \(via <code>lodash<\/code>\)/);
+    assert.match(html, /Optional \/ platform \(1\)/);
+    const injected = renderHtml({
+      ...report,
+      security: {
+        ...report.security,
+        introduced: [
+          {
+            ...report.security.introduced[0]!,
+            title: `<script>alert(1)</script>`,
+            packageName: `pkg"onclick`,
+          },
+        ],
+      },
+    });
+    assert.doesNotMatch(injected, /<script>alert/);
+    assert.match(injected, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+    assert.match(injected, /pkg&quot;onclick/);
   });
 
   it("fails when no staged lockfile exists", async () => {
