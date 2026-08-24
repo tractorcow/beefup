@@ -46,7 +46,7 @@ beefup report --format markdown
 
 Both strategies produce the same output: rewritten `package.json` file(s) and lockfile under `.beefup/staged`. They differ in where the package manager runs.
 
-**`worktree` (default)** — `git worktree add --detach .beefup/work HEAD`. The live tree is never mutated. Fails if the directory is not a git repository, or if `git status --porcelain` is non-empty (staged, unstaged, or untracked files). Leftover worktrees from a crashed run are removed first.
+**`worktree` (default)** — `git worktree add --detach .beefup/work HEAD`. The live tree is never mutated. Fails if the directory is not a git repository, or if `git status --porcelain` shows staged, unstaged, or untracked files **outside** `.beefup/` (a previous stage's artefacts do not block re-stage). Leftover worktrees from a crashed run are removed first. Projects may gitignore `.beefup` so it stays out of everyday `git status`; Beefup does not edit `.gitignore`.
 
 **`inplace`** — backups every file Beefup might write (workspace `package.json` files, lockfile, `pnpm-workspace.yaml`) to `.beefup/backup`, mutates the real workspace so globs such as `apps/*` still resolve, copies the proposal to `.beefup/staged`, then restores the originals. Use this when the working tree is dirty. If `.beefup/IN_PROGRESS` is left behind after a crash, the next run restores from backup before starting.
 

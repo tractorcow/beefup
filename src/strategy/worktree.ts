@@ -3,8 +3,8 @@ import { mkdir } from "node:fs/promises";
 import { StageStrategies } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { pathExists, removePath } from "../fsutil.js";
-import { worktreeDir, beefupDir } from "../project/paths.js";
-import { isGitRepo, runGit } from "./git.js";
+import { beefupDir, worktreeDir } from "../project/paths.js";
+import { hasNonBeefupWorkingTreeChanges, isGitRepo, runGit } from "./git.js";
 import type { StageStrategy, StageWorkspace } from "./types.js";
 
 /**
@@ -20,12 +20,13 @@ export class WorktreeStrategy implements StageStrategy {
   constructor(private readonly projectRoot: string) {}
 
   /**
-   * Requires a clean git repo, then creates a detached worktree for staging.
+   * Requires a git repo whose working tree is clean except for `.beefup/`,
+   * then creates a detached worktree for staging.
    */
   async prepare(): Promise<StageWorkspace> {
     if (!(await isGitRepo(this.projectRoot))) {
       throw new BeefupError(
-        "strategy worktree requires a git repository; commit the project or use --strategy inplace"
+        `strategy ${StageStrategies.Worktree} requires a git repository; commit the project or use --strategy ${StageStrategies.Inplace}`
       );
     }
 
@@ -33,9 +34,9 @@ export class WorktreeStrategy implements StageStrategy {
       ["status", "--porcelain"],
       this.projectRoot
     );
-    if (status.length > 0) {
+    if (hasNonBeefupWorkingTreeChanges(status)) {
       throw new BeefupError(
-        "strategy worktree requires a clean working tree (no staged, unstaged, or untracked files); commit or stash changes, or use --strategy inplace"
+        `strategy ${StageStrategies.Worktree} requires a clean working tree (no staged, unstaged, or untracked files); commit or stash changes, or use --strategy ${StageStrategies.Inplace}`
       );
     }
 
