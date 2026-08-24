@@ -83,6 +83,7 @@ export function parsePnpmLockfile(content: string): PnpmLockfile {
 
 /**
  * Reads and resolves a pnpm lockfile on disk into dependency and devDependency lists.
+ * Each packages-map entry is a scoped install keyed by its lockfile path.
  */
 export async function resolvePnpmLockfile(filePath: string): Promise<Resolution> {
   const lockfile = parsePnpmLockfile(await readFile(filePath, "utf8"));
@@ -90,11 +91,11 @@ export async function resolvePnpmLockfile(filePath: string): Promise<Resolution>
   const devDependencies: LockPackage[] = [];
 
   if (lockfile.packages) {
-    for (const [name, pkg] of Object.entries(lockfile.packages)) {
+    for (const [key, pkg] of Object.entries(lockfile.packages)) {
       if (!pkg || typeof pkg !== "object") {
         continue;
       }
-      const nameAndVersion = extractPackageInfoFromName(name);
+      const nameAndVersion = extractPackageInfoFromName(key);
       if (!nameAndVersion) {
         continue;
       }
@@ -106,6 +107,8 @@ export async function resolvePnpmLockfile(filePath: string): Promise<Resolution>
       const info: LockPackage = {
         name: nameAndVersion.name,
         version,
+        path: key,
+        optional: pkg.optional === true ? true : undefined,
       };
       if (pkg.dev === true) {
         devDependencies.push(info);

@@ -11,13 +11,31 @@ const fixtures = path.join(
 );
 
 describe("npm lockfile resolver", () => {
-  it("extracts top-level packages and skips nested modules", async () => {
+  it("extracts top-level and nested packages with install paths", async () => {
     const result = await resolveNpmLockfile(path.join(fixtures, "npm-basic.json"));
-    assert.deepEqual(result.dependencies, [{ name: "express", version: "4.18.0" }]);
-    assert.deepEqual(result.devDependencies, [{ name: "lodash", version: "4.17.21" }]);
-    assert.equal(
+    assert.deepEqual(
+      result.dependencies.find((pkg) => pkg.name === "express"),
+      {
+        name: "express",
+        version: "4.18.0",
+        path: "node_modules/express",
+      }
+    );
+    assert.deepEqual(
+      result.devDependencies.find((pkg) => pkg.name === "lodash"),
+      {
+        name: "lodash",
+        version: "4.17.21",
+        path: "node_modules/lodash",
+      }
+    );
+    assert.deepEqual(
       result.dependencies.find((pkg) => pkg.name === "debug"),
-      undefined
+      {
+        name: "debug",
+        version: "4.3.4",
+        path: "node_modules/express/node_modules/debug",
+      }
     );
   });
 

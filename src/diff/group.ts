@@ -1,39 +1,26 @@
 import {
-  PackageChangeType,
-  VersionChangeType,
+  PackageChangeTypes,
   type GroupedChanges,
   type PackageChange,
 } from "./types.js";
 
 /**
- * Buckets package changes by major/minor/patch upgrades, plus added, removed,
- * and downgraded groups for reporting.
+ * Buckets package changes into added, removed, and changed groups for reporting.
  */
-export function groupByVersionChange(changes: PackageChange[]): GroupedChanges {
+export function groupByChangeType(changes: PackageChange[]): GroupedChanges {
   const result: GroupedChanges = {
-    major: [],
-    minor: [],
-    patch: [],
     added: [],
     removed: [],
-    downgraded: [],
+    changed: [],
   };
 
   for (const change of changes) {
-    if (change.type === PackageChangeType.Upgraded && change.versionChange) {
-      if (change.versionChange === VersionChangeType.Major) {
-        result.major.push(change);
-      } else if (change.versionChange === VersionChangeType.Minor) {
-        result.minor.push(change);
-      } else if (change.versionChange === VersionChangeType.Patch) {
-        result.patch.push(change);
-      }
-    } else if (change.type === PackageChangeType.Downgraded) {
-      result.downgraded.push(change);
-    } else if (change.type === PackageChangeType.Added) {
+    if (change.type === PackageChangeTypes.Added) {
       result.added.push(change);
-    } else if (change.type === PackageChangeType.Removed) {
+    } else if (change.type === PackageChangeTypes.Removed) {
       result.removed.push(change);
+    } else if (change.type === PackageChangeTypes.Changed) {
+      result.changed.push(change);
     }
   }
 

@@ -1,5 +1,6 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { loadConfig } from "../config/load.js";
 import {
@@ -11,7 +12,7 @@ import {
   type StageStrategyName,
   type UpgradeMode,
 } from "../config/types.js";
-import { diffResolutions } from "../diff/diff.js";
+import { annotatePackageChanges, diffResolutions } from "../diff/diff.js";
 import { BeefupError } from "../errors.js";
 import { pathExists, readJsonFile } from "../fsutil.js";
 import { resolveLockfile } from "../lockfile/resolve.js";
@@ -19,6 +20,7 @@ import { defaultProcessRunner, type ProcessRunner } from "../pm/runner.js";
 import { assertNpmVersion, resolveProtectedPm } from "../pm/safe-chain.js";
 import { assertPolicy, evaluatePolicy } from "../policy/evaluate.js";
 import { detectProject } from "../project/detect.js";
+import { collectDirectDependencyNames } from "../project/direct-deps.js";
 import { reportDir, stagedDir } from "../project/paths.js";
 import { PackageManagers } from "../project/types.js";
 import { renderMarkdown } from "../report/markdown.js";
@@ -70,7 +72,14 @@ export async function runReport(options: ReportOptions): Promise<StageReport> {
 
   const before = await resolveLockfile(project.lockfilePath, project.packageManager);
   const after = await resolveLockfile(stagedLock, project.packageManager);
-  const diff = diffResolutions(before, after);
+  const { directNames, optionalDeclaredNames } =
+    await collectDirectDependencyNames(projectRoot);
+  const diff = annotatePackageChanges(diffResolutions(before, after), {
+    directNames,
+    optionalDeclaredNames,
+    before,
+    after,
+  });
   const policy = await evaluatePolicy(
     staged,
     project.packageManager,
@@ -98,6 +107,8 @@ export async function runReport(options: ReportOptions): Promise<StageReport> {
     mode: config.mode,
     strategy,
     packageManager: project.packageManager,
+    generatedAt: new Date().toISOString(),
+    beefupVersion: await readBeefupVersion(),
     diff,
     ranges: policy.ranges,
     overrides: policy.overrides,
@@ -164,4 +175,20 @@ function parseStrategy(value: string | undefined): StageStrategyName | undefined
     return value;
   }
   return undefined;
+}
+
+/**
+ * Reads this package's version from beefup's own package.json.
+ */
+async function readBeefupVersion(): Promise<string> {
+  const pkgPath = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../../package.json"
+  );
+  try {
+    const pkg = JSON.parse(await readFile(pkgPath, "utf8")) as { version?: string };
+    return pkg.version ?? "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
 }

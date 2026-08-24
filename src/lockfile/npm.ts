@@ -8,47 +8,88 @@ import type {
 } from "./types.js";
 
 /**
- * Derives a package name from an npm lockfile packages key, or null for nested installs.
+ * Derives a package name from an npm `packages` key (including nested installs).
  */
-function extractPackageName(key: string): string | null {
+function packageNameFromPackagesKey(key: string): string | null {
   if (key === "") {
     return null;
   }
-  const parts = key.split("/");
-  const nodeModulesIndex = parts.indexOf("node_modules");
-  if (nodeModulesIndex === -1) {
-    return key;
-  }
-  const nodeModulesCount = parts.filter((part) => part === "node_modules").length;
-  if (nodeModulesCount !== 1) {
+  const marker = "node_modules/";
+  const index = key.lastIndexOf(marker);
+  if (index === -1) {
     return null;
   }
-  return parts.slice(nodeModulesIndex + 1).join("/");
+  const name = key.slice(index + marker.length);
+  return name.length > 0 ? name : null;
 }
 
 /**
- * Appends dependency entries from an npm lockfile map into dependency/devDependency lists.
+ * Appends dependency entries from an npm lockfile `packages` map, including nested paths.
  */
-function extractDependencies(
+function extractFromPackagesMap(
   deps: Record<string, NpmLockfileDependency>,
   dependencies: LockPackage[],
-  devDependencies: LockPackage[],
-  forceDev = false
+  devDependencies: LockPackage[]
 ): void {
   for (const [key, dep] of Object.entries(deps)) {
     if (!dep || !dep.version) {
       continue;
     }
-    const packageName = extractPackageName(key);
+    const packageName = packageNameFromPackagesKey(key);
     if (!packageName) {
       continue;
     }
-    const info: LockPackage = { name: packageName, version: dep.version };
-    if (forceDev || dep.dev === true) {
+    const info: LockPackage = {
+      name: packageName,
+      version: dep.version,
+      path: key,
+      optional: dep.optional === true ? true : undefined,
+    };
+    if (dep.dev === true) {
       devDependencies.push(info);
       continue;
     }
     dependencies.push(info);
+  }
+}
+
+/**
+ * Recursively walks a lockfileVersion 1 dependency tree, recording each install path.
+ */
+function extractVersion1Tree(
+  deps: Record<string, NpmLockfileDependency>,
+  dependencies: LockPackage[],
+  devDependencies: LockPackage[],
+  parentPath: string,
+  forceDev: boolean
+): void {
+  for (const [name, dep] of Object.entries(deps)) {
+    if (!dep || !dep.version) {
+      continue;
+    }
+    const installPath = parentPath
+      ? `${parentPath}/node_modules/${name}`
+      : `node_modules/${name}`;
+    const info: LockPackage = {
+      name,
+      version: dep.version,
+      path: installPath,
+      optional: dep.optional === true ? true : undefined,
+    };
+    if (forceDev || dep.dev === true) {
+      devDependencies.push(info);
+    } else {
+      dependencies.push(info);
+    }
+    if (dep.dependencies) {
+      extractVersion1Tree(
+        dep.dependencies,
+        dependencies,
+        devDependencies,
+        installPath,
+        forceDev || dep.dev === true
+      );
+    }
   }
 }
 
@@ -59,13 +100,20 @@ function resolveVersion1(lockfile: NpmLockfile): Resolution {
   const dependencies: LockPackage[] = [];
   const devDependencies: LockPackage[] = [];
   if (lockfile.dependencies) {
-    extractDependencies(lockfile.dependencies, dependencies, devDependencies, false);
+    extractVersion1Tree(
+      lockfile.dependencies,
+      dependencies,
+      devDependencies,
+      "",
+      false
+    );
   }
   if (lockfile.devDependencies) {
-    extractDependencies(
+    extractVersion1Tree(
       lockfile.devDependencies,
       dependencies,
       devDependencies,
+      "",
       true
     );
   }
@@ -79,10 +127,7 @@ function resolveVersion2Or3(lockfile: NpmLockfile): Resolution {
   const dependencies: LockPackage[] = [];
   const devDependencies: LockPackage[] = [];
   if (lockfile.packages) {
-    extractDependencies(lockfile.packages, dependencies, devDependencies, false);
-  }
-  if (lockfile.dependencies) {
-    extractDependencies(lockfile.dependencies, dependencies, devDependencies, false);
+    extractFromPackagesMap(lockfile.packages, dependencies, devDependencies);
   }
   return { dependencies, devDependencies };
 }
@@ -103,6 +148,7 @@ export function parseNpmLockfile(content: string): NpmLockfile {
 
 /**
  * Reads and resolves an npm lockfile on disk into dependency and devDependency lists.
+ * Includes nested installs with their install paths as scopes.
  */
 export async function resolveNpmLockfile(filePath: string): Promise<Resolution> {
   const parsed = parseNpmLockfile(await readFile(filePath, "utf8"));

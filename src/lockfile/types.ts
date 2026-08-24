@@ -1,6 +1,10 @@
 export interface LockPackage {
   name: string;
   version: string;
+  /** Install / lockfile scope used for path-for-path comparison. */
+  path: string;
+  /** True when the lockfile marks this install as optional. */
+  optional?: boolean;
 }
 
 export interface Resolution {
@@ -11,6 +15,7 @@ export interface Resolution {
 export interface NpmLockfileDependency {
   version?: string;
   dev?: boolean;
+  optional?: boolean;
   dependencies?: Record<string, NpmLockfileDependency>;
 }
 
@@ -24,6 +29,7 @@ export interface NpmLockfile {
 export interface PnpmLockfilePackage {
   version?: string;
   dev?: boolean;
+  optional?: boolean;
   dependencies?: Record<string, string>;
   optionalDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;

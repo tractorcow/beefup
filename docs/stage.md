@@ -20,7 +20,9 @@ beefup report --format json
 6. Re-pins those direct dependencies to the exact versions in the new lockfile.
 7. Copies manifests and the lockfile to `.beefup/staged`.
 8. Restores or discards the isolated workspace so the live tree matches the start state.
-9. Writes a report via `beefup report` (package diff, policy, CVE fixed / introduced / retained).
+9. Writes a report via `beefup report` (package diff with all scoped installs, policy, CVE introduced / unresolved / fixed).
+
+Package diffs compare **path-for-path** (including nested installs and multiple versions of the same package). Displayed from/to columns list unique version tags only.
 
 To regenerate that report later without re-running the upgrade proposal:
 
@@ -62,8 +64,10 @@ After a successful stage, `.beefup/staged` contains only the proposed project fi
 
 Reports are written separately under `.beefup/report`:
 
-- `REPORT.md`
+- `REPORT.md` — Summary (counts, beefup version, timestamp) → Security (Introduced → Unresolved → Fixed, with short section intros) → Policy → collapsible package diffs (`<details>`) → Legend / paths
 - `report.json`
+
+Package diffs split optional/platform packages into their own section, bold direct names and italicize transitive ones, use a single Version column for added/removed, and omit path-only churn (same unique versions, different install paths). Meta-vulns from npm audit are kept and labeled `transitive (via …)` instead of blank references. **Unresolved** findings are still open after the upgrade (formerly called retained).
 
 Stdout prints the report in `--format` (`text` by default). Diff the live project against `.beefup/staged` to review the proposal. Tweak pins or overrides in the live project and run `beefup stage` again until the proposal is acceptable. Use `beefup report` to refresh `.beefup/report` (and stdout) after changing scanners or policy without re-staging.
 
