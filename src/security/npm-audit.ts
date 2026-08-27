@@ -1,4 +1,9 @@
-import { normalizeSeverity, type SecurityFinding } from "./classify.js";
+import {
+  normalizeSeverity,
+  SecuritySources,
+  type SecurityFinding,
+} from "./classify.js";
+import { primaryFindingId, dedupeRefs, refsFromText } from "./refs.js";
 
 interface NpmAuditVia {
   source?: number | string;
@@ -6,6 +11,7 @@ interface NpmAuditVia {
   title?: string;
   severity?: string;
   url?: string;
+  cve?: string | string[];
 }
 
 interface NpmAuditVulnerability {
@@ -19,6 +25,15 @@ interface NpmAuditReport {
   vulnerabilities?: Record<string, NpmAuditVulnerability>;
 }
 
+/** Title used for npm meta-vulns that only depend on other vulnerable packages. */
+export const META_VULN_TITLE = "Depends on vulnerable package(s)";
+
+/**
+ * Parses `npm audit --json` output into normalized SecurityFinding entries.
+ * Prefers GHSA/CVE refs extracted from advisory URLs over numeric npm advisory ids.
+ * Meta-vulns (via package-name strings only) are kept with viaPackages labels.
+ * Returns an empty list when the payload is not valid JSON.
+ */
 export function parseNpmAuditJson(raw: string): SecurityFinding[] {
   let parsed: NpmAuditReport;
   try {
@@ -32,26 +47,44 @@ export function parseNpmAuditJson(raw: string): SecurityFinding[] {
     const advisoryVias = vias.filter(
       (item): item is NpmAuditVia => typeof item === "object" && item !== null
     );
+    const viaPackages = vias
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0)
+      .sort((a, b) => a.localeCompare(b));
+
     if (advisoryVias.length === 0) {
+      const fallback = `npm:${packageName}`;
       findings.push({
-        id: `npm:${packageName}`,
+        id: fallback,
+        refs: [],
+        viaPackages: viaPackages.length > 0 ? viaPackages : undefined,
         packageName: vuln.name ?? packageName,
         severity: normalizeSeverity(vuln.severity),
-        source: "npm-audit",
-        title: packageName,
+        source: SecuritySources.NpmAudit,
+        title: META_VULN_TITLE,
       });
       continue;
     }
     for (const via of advisoryVias) {
-      const id =
+      const refs = dedupeRefs([
+        ...refsFromText(via.url),
+        ...refsFromText(typeof via.cve === "string" ? via.cve : undefined),
+        ...(Array.isArray(via.cve)
+          ? via.cve.flatMap((item) => refsFromText(item))
+          : []),
+        ...refsFromText(via.title),
+      ]);
+      const fallback =
         via.source !== undefined
-          ? String(via.source)
+          ? `npm:${via.source}`
           : via.url ?? via.title ?? packageName;
       findings.push({
-        id,
+        id: primaryFindingId(refs, fallback),
+        refs,
         packageName: via.name ?? vuln.name ?? packageName,
         severity: normalizeSeverity(via.severity ?? vuln.severity),
-        source: "npm-audit",
+        source: SecuritySources.NpmAudit,
         title: via.title,
       });
     }

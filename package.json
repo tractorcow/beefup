@@ -17,6 +17,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "postbuild": "chmod +x dist/bin.js",
     "test": "tsx --test --test-reporter spec $(find src -name '*.test.ts')"
   },
   "dependencies": {

@@ -1,7 +1,7 @@
 import path from "node:path";
 
 import type { UpgradeMode } from "../config/types.js";
-import { writeJsonFile, readJsonFile } from "../fsutil.js";
+import { readJsonFile, writeJsonFile } from "../fsutil.js";
 import { lockedVersionsForImporter } from "../lockfile/locked.js";
 import type { PackageJson } from "../project/package-json.js";
 import type { PackageManager } from "../project/types.js";
@@ -9,6 +9,9 @@ import { listWorkspacePackages } from "../project/workspace.js";
 import { rewritePackageJson } from "./constraints.js";
 import { rePinPackageJson } from "./repin.js";
 
+/**
+ * Rewrites dependency ranges in every workspace package.json according to upgrade mode.
+ */
 export async function rewriteWorkspace(
   root: string,
   mode: UpgradeMode
@@ -21,6 +24,9 @@ export async function rewriteWorkspace(
   }
 }
 
+/**
+ * Re-pins every workspace package.json to exact versions from the given lockfile.
+ */
 export async function repinWorkspace(
   root: string,
   lockfilePath: string,
@@ -39,6 +45,9 @@ export async function repinWorkspace(
   }
 }
 
+/**
+ * Joins a project root with its lockfile basename.
+ */
 export function lockfilePathFor(root: string, lockfileName: string): string {
   return path.join(root, lockfileName);
 }

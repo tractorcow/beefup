@@ -1,49 +1,90 @@
-export type FindingSeverity = "critical" | "high" | "moderate" | "low" | "info";
+import type { AdvisoryRef } from "./refs.js";
+
+/** Closed set of vulnerability severities used in security reports. */
+export const FindingSeverities = {
+  Critical: "critical",
+  High: "high",
+  Moderate: "moderate",
+  Low: "low",
+  Info: "info",
+} as const;
+
+/** Severity level for a security finding. */
+export type FindingSeverity =
+  (typeof FindingSeverities)[keyof typeof FindingSeverities];
+
+/** Closed set of scanners that can produce a security finding. */
+export const SecuritySources = {
+  NpmAudit: "npm-audit",
+  CveLite: "cve-lite",
+} as const;
+
+/** Scanner that produced a security finding. */
+export type SecuritySource =
+  (typeof SecuritySources)[keyof typeof SecuritySources];
 
 export interface SecurityFinding {
+  /** Primary identity for classification (prefer GHSA, then CVE, then OSV). */
   id: string;
+  /** Public CVE / GHSA / OSV references for this vulnerability. */
+  refs: AdvisoryRef[];
+  /**
+   * Parent package names when this row is an npm meta-vuln (via strings only).
+   * Empty/undefined for findings with real advisory objects.
+   */
+  viaPackages?: string[];
   packageName: string;
   version?: string;
   severity: FindingSeverity;
-  source: "npm-audit" | "cve-lite";
+  source: SecuritySource;
   title?: string;
 }
 
 export interface ClassifiedFindings {
   fixed: SecurityFinding[];
   introduced: SecurityFinding[];
-  retained: SecurityFinding[];
+  /** Present before and after the upgrade — still open / unfixed. */
+  unresolved: SecurityFinding[];
 }
 
 const SEVERITY_ORDER: FindingSeverity[] = [
-  "critical",
-  "high",
-  "moderate",
-  "low",
-  "info",
+  FindingSeverities.Critical,
+  FindingSeverities.High,
+  FindingSeverities.Moderate,
+  FindingSeverities.Low,
+  FindingSeverities.Info,
 ];
 
+/**
+ * Maps a raw severity string from a scanner into a normalized FindingSeverity.
+ */
 export function normalizeSeverity(raw: string | undefined): FindingSeverity {
-  const value = (raw ?? "info").toLowerCase();
-  if (value === "critical") {
-    return "critical";
+  const value = (raw ?? FindingSeverities.Info).toLowerCase();
+  if (value === FindingSeverities.Critical) {
+    return FindingSeverities.Critical;
   }
-  if (value === "high") {
-    return "high";
+  if (value === FindingSeverities.High) {
+    return FindingSeverities.High;
   }
-  if (value === "moderate" || value === "medium") {
-    return "moderate";
+  if (value === FindingSeverities.Moderate || value === "medium") {
+    return FindingSeverities.Moderate;
   }
-  if (value === "low") {
-    return "low";
+  if (value === FindingSeverities.Low) {
+    return FindingSeverities.Low;
   }
-  return "info";
+  return FindingSeverities.Info;
 }
 
+/**
+ * Builds a stable identity key for a finding (id + package name).
+ */
 function findingKey(finding: SecurityFinding): string {
   return `${finding.id}::${finding.packageName}`;
 }
 
+/**
+ * Sorts findings by severity (highest first), then by identity key.
+ */
 function sortFindings(findings: SecurityFinding[]): SecurityFinding[] {
   return [...findings].sort((a, b) => {
     const severity =
@@ -55,6 +96,9 @@ function sortFindings(findings: SecurityFinding[]): SecurityFinding[] {
   });
 }
 
+/**
+ * Classifies findings as fixed, introduced, or unresolved by comparing before/after scans.
+ */
 export function classifyFindings(
   before: SecurityFinding[],
   after: SecurityFinding[]
@@ -63,11 +107,11 @@ export function classifyFindings(
   const afterMap = new Map(after.map((item) => [findingKey(item), item]));
   const fixed: SecurityFinding[] = [];
   const introduced: SecurityFinding[] = [];
-  const retained: SecurityFinding[] = [];
+  const unresolved: SecurityFinding[] = [];
 
   for (const [key, finding] of beforeMap) {
     if (afterMap.has(key)) {
-      retained.push(afterMap.get(key) ?? finding);
+      unresolved.push(afterMap.get(key) ?? finding);
     } else {
       fixed.push(finding);
     }
@@ -81,6 +125,6 @@ export function classifyFindings(
   return {
     fixed: sortFindings(fixed),
     introduced: sortFindings(introduced),
-    retained: sortFindings(retained),
+    unresolved: sortFindings(unresolved),
   };
 }

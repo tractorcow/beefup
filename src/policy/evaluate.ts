@@ -3,14 +3,14 @@ import path from "node:path";
 
 import { parse as parseYaml } from "yaml";
 
-import type { BeefupConfig } from "../config/types.js";
+import { AlignmentActions, type BeefupConfig } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { pathExists, readJsonFile } from "../fsutil.js";
 import { parseNpmLockfile } from "../lockfile/npm.js";
 import { parsePnpmLockfile } from "../lockfile/pnpm.js";
 import type { NpmLockfile, PnpmLockfile } from "../lockfile/types.js";
-import type { PackageManager } from "../project/types.js";
 import type { PackageJson } from "../project/package-json.js";
+import { PackageManagers, type PackageManager } from "../project/types.js";
 import { listWorkspacePackages } from "../project/workspace.js";
 import { findAlignmentIssues, type AlignmentFinding } from "./alignment.js";
 import {
@@ -28,6 +28,9 @@ export interface PolicyResult {
   warnings: string[];
 }
 
+/**
+ * Evaluates range, override, and alignment policy against a project workspace.
+ */
 export async function evaluatePolicy(
   root: string,
   packageManager: PackageManager,
@@ -38,7 +41,7 @@ export async function evaluatePolicy(
   const lockPath = path.join(root, lockfileName);
   const lockContent = await readFile(lockPath, "utf8");
   const lock: NpmLockfile | PnpmLockfile =
-    packageManager === "npm"
+    packageManager === PackageManagers.Npm
       ? parseNpmLockfile(lockContent)
       : parsePnpmLockfile(lockContent);
 
@@ -76,21 +79,28 @@ export async function evaluatePolicy(
   );
 
   const warnings = [
-    ...ranges.filter((item) => item.severity === "warn").map((item) => item.message),
-    ...alignment.filter((item) => item.severity === "warn").map((item) => `[${item.group}] ${item.message}`),
+    ...ranges
+      .filter((item) => item.severity === AlignmentActions.Warn)
+      .map((item) => item.message),
+    ...alignment
+      .filter((item) => item.severity === AlignmentActions.Warn)
+      .map((item) => `[${item.group}] ${item.message}`),
   ];
 
   return { ranges, overrides, alignment, warnings };
 }
 
+/**
+ * Throws when the policy result contains any error-severity findings.
+ */
 export function assertPolicy(result: PolicyResult): void {
   const errors = [
     ...result.ranges
-      .filter((item) => item.severity === "error")
+      .filter((item) => item.severity === AlignmentActions.Error)
       .map((item) => item.message),
     ...result.overrides.map((item) => `[${item.override}] ${item.message}`),
     ...result.alignment
-      .filter((item) => item.severity === "error")
+      .filter((item) => item.severity === AlignmentActions.Error)
       .map((item) => `[${item.group}] ${item.message}`),
   ];
   if (errors.length > 0) {

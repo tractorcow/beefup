@@ -1,15 +1,21 @@
 import { BeefupError } from "../errors.js";
-import type { PackageManager } from "../project/types.js";
+import { PackageManagers, type PackageManager } from "../project/types.js";
 import type { ProcessRunner } from "./runner.js";
 import type { ProtectedPm } from "./safe-chain.js";
 
+/**
+ * Returns lockfile-only update CLI args for the given package manager.
+ */
 export function lockfileUpdateArgs(packageManager: PackageManager): string[] {
-  if (packageManager === "npm") {
+  if (packageManager === PackageManagers.Npm) {
     return ["update", "--package-lock-only", "--ignore-scripts"];
   }
   return ["update", "--lockfile-only", "--ignore-scripts", "--no-save"];
 }
 
+/**
+ * Regenerates the project lockfile through a Safe Chain–protected package manager.
+ */
 export async function regenerateLockfile(options: {
   pm: ProtectedPm;
   packageManager: PackageManager;

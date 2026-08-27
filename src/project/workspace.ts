@@ -12,6 +12,9 @@ export interface WorkspacePackage {
   packageJsonPath: string;
 }
 
+/**
+ * Reads workspace glob patterns from package.json `workspaces` (array or object form).
+ */
 function workspacePatterns(pkg: PackageJson): string[] {
   if (!pkg.workspaces) {
     return [];
@@ -22,6 +25,9 @@ function workspacePatterns(pkg: PackageJson): string[] {
   return pkg.workspaces.packages ?? [];
 }
 
+/**
+ * Lists the root package plus every workspace package under npm/pnpm workspace globs.
+ */
 export async function listWorkspacePackages(
   root: string
 ): Promise<WorkspacePackage[]> {
@@ -68,6 +74,10 @@ export async function listWorkspacePackages(
   return packages;
 }
 
+/**
+ * Lists relative paths Beefup may rewrite: workspace package.json files, lockfile,
+ * and optional pnpm-workspace.yaml / .npmrc when present.
+ */
 export async function listWritableRelativePaths(
   root: string,
   lockfileName: string

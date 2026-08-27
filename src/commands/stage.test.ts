@@ -7,6 +7,7 @@ import { describe, it } from "node:test";
 import { promisify } from "node:util";
 
 import { runStage } from "../commands/stage.js";
+import { ReportFormats, StageStrategies } from "../config/types.js";
 import { readJsonFile, writeJsonFile } from "../fsutil.js";
 import type { ProcessRunner } from "../pm/runner.js";
 import type { PackageJson } from "../project/package-json.js";
@@ -38,10 +39,16 @@ const runner: ProcessRunner = {
   },
 };
 
+/**
+ * Runs a git command in the given working directory.
+ */
 async function git(args: string[], cwd: string): Promise<void> {
   await execFile("git", args, { cwd });
 }
 
+/**
+ * Seeds a minimal pnpm project with package.json and lockfile fixtures.
+ */
 async function seedPnpmProject(dir: string): Promise<void> {
   await writeJsonFile(path.join(dir, "package.json"), {
     name: "demo",
@@ -77,8 +84,8 @@ describe("runStage", () => {
     try {
       const report = await runStage({
         projectRoot: dir,
-        strategy: "worktree",
-        format: "text",
+        strategy: StageStrategies.Worktree,
+        format: ReportFormats.Text,
         runner,
       });
       const live = await readJsonFile<PackageJson>(path.join(dir, "package.json"));
@@ -92,7 +99,7 @@ describe("runStage", () => {
         "utf8"
       );
       assert.match(stagedLock, /1\.3\.0/);
-      assert.equal(report.strategy, "worktree");
+      assert.equal(report.strategy, StageStrategies.Worktree);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -104,8 +111,8 @@ describe("runStage", () => {
     try {
       await runStage({
         projectRoot: dir,
-        strategy: "inplace",
-        format: "json",
+        strategy: StageStrategies.Inplace,
+        format: ReportFormats.Json,
         runner,
       });
       const live = await readJsonFile<PackageJson>(path.join(dir, "package.json"));

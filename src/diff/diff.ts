@@ -1,13 +1,16 @@
-import { diff, gt, parse, valid } from "semver";
-
 import type { LockPackage, Resolution } from "../lockfile/types.js";
 import {
-  PackageChangeType,
-  VersionChangeType,
+  PackageChangeTypes,
   type PackageChange,
   type ResolutionDiff,
+  type ScopedVersion,
 } from "./types.js";
 
+/**
+ * Compares two lockfile resolutions and returns added, removed, and changed
+ * packages. Versions are compared path-for-path within each package name.
+ * Path-only churn (identical unique versions) is omitted.
+ */
 export function diffResolutions(
   source: Resolution,
   target: Resolution
@@ -21,42 +24,69 @@ export function diffResolutions(
   };
 }
 
-function diffPackages(source: LockPackage[], target: LockPackage[]): PackageChange[] {
-  const sourceMap = new Map(source.map((pkg) => [pkg.name, pkg]));
-  const targetMap = new Map(target.map((pkg) => [pkg.name, pkg]));
+/**
+ * Annotates diff entries with direct-dependency and optional/platform flags.
+ */
+export function annotatePackageChanges(
+  diff: ResolutionDiff,
+  options: {
+    directNames: ReadonlySet<string>;
+    optionalDeclaredNames: ReadonlySet<string>;
+    before: Resolution;
+    after: Resolution;
+  }
+): ResolutionDiff {
+  return {
+    dependencies: annotateList(diff.dependencies, options, "dependencies"),
+    devDependencies: annotateList(
+      diff.devDependencies,
+      options,
+      "devDependencies"
+    ),
+  };
+}
+
+/**
+ * Diffs two package lists by name, comparing only matching scopes/paths.
+ */
+function diffPackages(
+  source: LockPackage[],
+  target: LockPackage[]
+): PackageChange[] {
+  const sourceByName = groupByName(source);
+  const targetByName = groupByName(target);
+  const names = new Set([...sourceByName.keys(), ...targetByName.keys()]);
   const changes: PackageChange[] = [];
 
-  for (const [name, sourcePkg] of sourceMap.entries()) {
-    const targetPkg = targetMap.get(name);
-    if (!targetPkg) {
-      changes.push({
-        name,
-        type: PackageChangeType.Removed,
-        fromVersion: sourcePkg.version,
-      });
-      continue;
-    }
-    if (sourcePkg.version === targetPkg.version) {
-      continue;
-    }
-    const versionInfo = getVersionChangeType(sourcePkg.version, targetPkg.version);
-    if (versionInfo) {
-      changes.push({
-        name,
-        type: versionInfo.direction,
-        versionChange: versionInfo.type,
-        fromVersion: sourcePkg.version,
-        toVersion: targetPkg.version,
-      });
-    }
-  }
+  for (const name of [...names].sort((a, b) => a.localeCompare(b))) {
+    const from = sourceByName.get(name) ?? [];
+    const to = targetByName.get(name) ?? [];
 
-  for (const [name, targetPkg] of targetMap.entries()) {
-    if (!sourceMap.has(name)) {
+    if (from.length === 0) {
       changes.push({
         name,
-        type: PackageChangeType.Added,
-        toVersion: targetPkg.version,
+        type: PackageChangeTypes.Added,
+        from: [],
+        to,
+      });
+      continue;
+    }
+    if (to.length === 0) {
+      changes.push({
+        name,
+        type: PackageChangeTypes.Removed,
+        from,
+        to: [],
+      });
+      continue;
+    }
+
+    if (scopesDiffer(from, to) && uniqueVersionsDiffer(from, to)) {
+      changes.push({
+        name,
+        type: PackageChangeTypes.Changed,
+        from,
+        to,
       });
     }
   }
@@ -64,49 +94,89 @@ function diffPackages(source: LockPackage[], target: LockPackage[]): PackageChan
   return changes;
 }
 
-function getVersionChangeType(
-  from: string,
-  to: string
-): {
-  type: VersionChangeType;
-  direction: PackageChangeType.Upgraded | PackageChangeType.Downgraded;
-} | null {
-  if (!valid(from) || !valid(to)) {
-    return null;
-  }
-  const fromParsed = parse(from);
-  const toParsed = parse(to);
-  if (!fromParsed || !toParsed) {
-    return null;
-  }
-  if (fromParsed.major !== toParsed.major) {
-    return createVersionChangeInfo(VersionChangeType.Major, to, from);
-  }
-  if (fromParsed.minor !== toParsed.minor) {
-    return createVersionChangeInfo(VersionChangeType.Minor, to, from);
-  }
-  if (fromParsed.patch !== toParsed.patch) {
-    return createVersionChangeInfo(VersionChangeType.Patch, to, from);
-  }
-  const changeType = diff(from, to);
-  if (!changeType) {
-    return null;
-  }
-  return createVersionChangeInfo(VersionChangeType.Patch, to, from);
+/**
+ * Applies direct/optional flags onto one package-change list.
+ */
+function annotateList(
+  changes: PackageChange[],
+  options: {
+    directNames: ReadonlySet<string>;
+    optionalDeclaredNames: ReadonlySet<string>;
+    before: Resolution;
+    after: Resolution;
+  },
+  bucket: "dependencies" | "devDependencies"
+): PackageChange[] {
+  const lockPkgs = [
+    ...options.before[bucket],
+    ...options.after[bucket],
+  ];
+  return changes.map((change) => {
+    const optionalFromLock = lockPkgs.some(
+      (pkg) => pkg.name === change.name && pkg.optional === true
+    );
+    return {
+      ...change,
+      direct: options.directNames.has(change.name),
+      optional:
+        optionalFromLock || options.optionalDeclaredNames.has(change.name),
+    };
+  });
 }
 
-function createVersionChangeInfo(
-  type: VersionChangeType,
-  to: string,
-  from: string
-): {
-  type: VersionChangeType;
-  direction: PackageChangeType.Upgraded | PackageChangeType.Downgraded;
-} {
-  return {
-    type,
-    direction: gt(to, from)
-      ? PackageChangeType.Upgraded
-      : PackageChangeType.Downgraded,
-  };
+/**
+ * Groups lock packages by name into sorted scoped version lists.
+ */
+function groupByName(packages: LockPackage[]): Map<string, ScopedVersion[]> {
+  const grouped = new Map<string, ScopedVersion[]>();
+  for (const pkg of packages) {
+    const list = grouped.get(pkg.name) ?? [];
+    list.push({ path: pkg.path, version: pkg.version });
+    grouped.set(pkg.name, list);
+  }
+  for (const [name, list] of grouped) {
+    list.sort((a, b) => a.path.localeCompare(b.path));
+    grouped.set(name, list);
+  }
+  return grouped;
+}
+
+/**
+ * Returns true when any scope path is missing on one side or has a different version.
+ */
+function scopesDiffer(from: ScopedVersion[], to: ScopedVersion[]): boolean {
+  const fromMap = new Map(from.map((item) => [item.path, item.version]));
+  const toMap = new Map(to.map((item) => [item.path, item.version]));
+  const paths = new Set([...fromMap.keys(), ...toMap.keys()]);
+  for (const path of paths) {
+    if (fromMap.get(path) !== toMap.get(path)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Returns true when the set of unique version tags differs between from and to.
+ */
+function uniqueVersionsDiffer(from: ScopedVersion[], to: ScopedVersion[]): boolean {
+  const fromKey = [...new Set(from.map((item) => item.version))]
+    .sort((a, b) => a.localeCompare(b))
+    .join("\0");
+  const toKey = [...new Set(to.map((item) => item.version))]
+    .sort((a, b) => a.localeCompare(b))
+    .join("\0");
+  return fromKey !== toKey;
+}
+
+/**
+ * Unique version tags from scoped installs, sorted and comma-separated for display.
+ */
+export function formatUniqueVersions(scoped: ScopedVersion[]): string {
+  if (scoped.length === 0) {
+    return "—";
+  }
+  return [...new Set(scoped.map((item) => item.version))]
+    .sort((a, b) => a.localeCompare(b))
+    .join(", ");
 }

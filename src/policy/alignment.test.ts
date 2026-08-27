@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { DEFAULT_CONFIG } from "../config/types.js";
+import { PackageManagers } from "../project/types.js";
 import { findAlignmentIssues } from "./alignment.js";
 
 describe("findAlignmentIssues", () => {
@@ -23,7 +24,7 @@ describe("findAlignmentIssues", () => {
           "@strapi/admin": "5.50.0",
         },
       },
-      "npm",
+      PackageManagers.Npm,
       {
         packages: {
           "node_modules/@strapi/strapi": { version: "5.51.1" },

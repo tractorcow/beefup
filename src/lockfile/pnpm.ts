@@ -9,6 +9,9 @@ import type {
   Resolution,
 } from "./types.js";
 
+/**
+ * Normalizes a pnpm package key, dropping nested node_modules paths.
+ */
 function cleanPackageKey(key: string): string | null {
   const parts = key.split("/");
   const nodeModulesIndex = parts.indexOf("node_modules");
@@ -22,6 +25,9 @@ function cleanPackageKey(key: string): string | null {
   return key;
 }
 
+/**
+ * Parses a pnpm packages-map key into package name and optional embedded version.
+ */
 function extractPackageInfoFromName(
   key: string
 ): { name: string; version: string | null } | null {
@@ -57,6 +63,10 @@ function extractPackageInfoFromName(
   };
 }
 
+/**
+ * Parses pnpm-lock.yaml content into a typed lockfile object.
+ * Throws when the YAML is not a valid object.
+ */
 export function parsePnpmLockfile(content: string): PnpmLockfile {
   try {
     const parsed = parseYaml(content);
@@ -71,17 +81,21 @@ export function parsePnpmLockfile(content: string): PnpmLockfile {
   }
 }
 
+/**
+ * Reads and resolves a pnpm lockfile on disk into dependency and devDependency lists.
+ * Each packages-map entry is a scoped install keyed by its lockfile path.
+ */
 export async function resolvePnpmLockfile(filePath: string): Promise<Resolution> {
   const lockfile = parsePnpmLockfile(await readFile(filePath, "utf8"));
   const dependencies: LockPackage[] = [];
   const devDependencies: LockPackage[] = [];
 
   if (lockfile.packages) {
-    for (const [name, pkg] of Object.entries(lockfile.packages)) {
+    for (const [key, pkg] of Object.entries(lockfile.packages)) {
       if (!pkg || typeof pkg !== "object") {
         continue;
       }
-      const nameAndVersion = extractPackageInfoFromName(name);
+      const nameAndVersion = extractPackageInfoFromName(key);
       if (!nameAndVersion) {
         continue;
       }
@@ -93,6 +107,8 @@ export async function resolvePnpmLockfile(filePath: string): Promise<Resolution>
       const info: LockPackage = {
         name: nameAndVersion.name,
         version,
+        path: key,
+        optional: pkg.optional === true ? true : undefined,
       };
       if (pkg.dev === true) {
         devDependencies.push(info);
@@ -105,11 +121,17 @@ export async function resolvePnpmLockfile(filePath: string): Promise<Resolution>
   return { dependencies, devDependencies };
 }
 
+/**
+ * Removes the peer-dependency suffix (parenthetical) from a pnpm version string.
+ */
 export function stripPnpmPeerSuffix(value: string): string {
   const paren = value.indexOf("(");
   return paren === -1 ? value : value.slice(0, paren);
 }
 
+/**
+ * Extracts a concrete version from a pnpm importer dependency entry.
+ */
 function importerVersion(value: PnpmImporterDep | string | undefined): string | undefined {
   if (typeof value === "string") {
     return stripPnpmPeerSuffix(value);
@@ -120,6 +142,9 @@ function importerVersion(value: PnpmImporterDep | string | undefined): string | 
   return undefined;
 }
 
+/**
+ * Maps direct dependency names to locked versions for one pnpm importer path.
+ */
 export function lockedVersionsFromPnpm(
   lockfile: PnpmLockfile,
   importerDir: string

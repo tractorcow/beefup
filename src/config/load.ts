@@ -6,8 +6,17 @@ import { parse as parseYaml } from "yaml";
 import { BeefupError } from "../errors.js";
 import { pathExists, readJsonFile } from "../fsutil.js";
 import type { PackageJson } from "../project/package-json.js";
-import { DEFAULT_CONFIG, type BeefupConfig, type UpgradeMode } from "./types.js";
+import {
+  DEFAULT_CONFIG,
+  isAlignmentAction,
+  isUpgradeMode,
+  type BeefupConfig,
+  type UpgradeMode,
+} from "./types.js";
 
+/**
+ * Returns a string array when `value` is an array of strings; otherwise undefined.
+ */
 function asStringArray(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) {
     return undefined;
@@ -18,6 +27,9 @@ function asStringArray(value: unknown): string[] | undefined {
   return undefined;
 }
 
+/**
+ * Extracts known Beefup config fields from a raw object, ignoring unknown shapes.
+ */
 function parsePartial(raw: unknown): Partial<BeefupConfig> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return {};
@@ -25,7 +37,7 @@ function parsePartial(raw: unknown): Partial<BeefupConfig> {
   const input = raw as Record<string, unknown>;
   const partial: Partial<BeefupConfig> = {};
 
-  if (input.mode === "same-major" || input.mode === "latest") {
+  if (isUpgradeMode(input.mode)) {
     partial.mode = input.mode;
   }
   const banned = asStringArray(input.bannedRanges);
@@ -35,7 +47,7 @@ function parsePartial(raw: unknown): Partial<BeefupConfig> {
   if (typeof input.preferExact === "boolean") {
     partial.preferExact = input.preferExact;
   }
-  if (input.alignment === "error" || input.alignment === "warn") {
+  if (isAlignmentAction(input.alignment)) {
     partial.alignment = input.alignment;
   }
   if (Array.isArray(input.alignedGroups)) {
@@ -56,10 +68,9 @@ function parsePartial(raw: unknown): Partial<BeefupConfig> {
           name: g.name,
           source: g.source,
           packages,
-          onMismatch:
-            g.onMismatch === "warn" || g.onMismatch === "error"
-              ? g.onMismatch
-              : undefined,
+          onMismatch: isAlignmentAction(g.onMismatch)
+            ? g.onMismatch
+            : undefined,
         },
       ];
     });
@@ -67,6 +78,10 @@ function parsePartial(raw: unknown): Partial<BeefupConfig> {
   return partial;
 }
 
+/**
+ * Loads and merges Beefup config from package.json and pnpm-workspace.yaml.
+ * An optional mode override (e.g. CLI `--mode`) wins over file config.
+ */
 export async function loadConfig(
   projectRoot: string,
   modeOverride?: UpgradeMode

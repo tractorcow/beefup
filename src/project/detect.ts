@@ -3,23 +3,29 @@ import path from "node:path";
 import { BeefupError } from "../errors.js";
 import { pathExists, readJsonFile } from "../fsutil.js";
 import type { PackageJson } from "./package-json.js";
-import type { DetectedProject, PackageManager } from "./types.js";
+import { PackageManagers, type DetectedProject, type PackageManager } from "./types.js";
 
+/**
+ * Maps a package.json `packageManager` field to a supported package manager.
+ */
 function managerFromPackageManagerField(
   field: string | undefined
 ): PackageManager | undefined {
   if (!field) {
     return undefined;
   }
-  if (field.startsWith("pnpm@")) {
-    return "pnpm";
+  if (field.startsWith(`${PackageManagers.Pnpm}@`)) {
+    return PackageManagers.Pnpm;
   }
-  if (field.startsWith("npm@")) {
-    return "npm";
+  if (field.startsWith(`${PackageManagers.Npm}@`)) {
+    return PackageManagers.Npm;
   }
   return undefined;
 }
 
+/**
+ * Detects the project root's package manager and lockfile from disk and hints.
+ */
 export async function detectProject(root: string): Promise<DetectedProject> {
   const pkgPath = path.join(root, "package.json");
   if (!(await pathExists(pkgPath))) {
@@ -38,40 +44,40 @@ export async function detectProject(root: string): Promise<DetectedProject> {
         "both pnpm-lock.yaml and package-lock.json exist; set packageManager in package.json"
       );
     }
-    return hinted === "pnpm"
+    return hinted === PackageManagers.Pnpm
       ? {
           root,
-          packageManager: "pnpm",
+          packageManager: PackageManagers.Pnpm,
           lockfileName: "pnpm-lock.yaml",
           lockfilePath: pnpmLock,
         }
       : {
           root,
-          packageManager: "npm",
+          packageManager: PackageManagers.Npm,
           lockfileName: "package-lock.json",
           lockfilePath: npmLock,
         };
   }
 
-  if (hasPnpm || hinted === "pnpm") {
+  if (hasPnpm || hinted === PackageManagers.Pnpm) {
     if (!hasPnpm) {
       throw new BeefupError(`no pnpm-lock.yaml at ${root}`);
     }
     return {
       root,
-      packageManager: "pnpm",
+      packageManager: PackageManagers.Pnpm,
       lockfileName: "pnpm-lock.yaml",
       lockfilePath: pnpmLock,
     };
   }
 
-  if (hasNpm || hinted === "npm") {
+  if (hasNpm || hinted === PackageManagers.Npm) {
     if (!hasNpm) {
       throw new BeefupError(`no package-lock.json at ${root}`);
     }
     return {
       root,
-      packageManager: "npm",
+      packageManager: PackageManagers.Npm,
       lockfileName: "package-lock.json",
       lockfilePath: npmLock,
     };

@@ -1,16 +1,21 @@
 import semver from "semver";
 
-import type { NpmLockfile, PnpmLockfile } from "../lockfile/types.js";
+import { BannedRangeTags } from "../config/types.js";
 import { stripPnpmPeerSuffix } from "../lockfile/pnpm.js";
+import type { NpmLockfile, PnpmLockfile } from "../lockfile/types.js";
 import type { PackageJson } from "../project/package-json.js";
+import { PackageManagers, type PackageManager } from "../project/types.js";
 
 export interface OverrideFinding {
   override: string;
   message: string;
 }
 
-const BANNED_OVERRIDE_TAGS = new Set(["latest"]);
+const BANNED_OVERRIDE_TAGS: Set<string> = new Set([BannedRangeTags.Latest]);
 
+/**
+ * Parses an override key into a package name and optional version selector.
+ */
 function parseOverrideKey(key: string): { name: string; selector: string | null } {
   if (key.startsWith("@")) {
     const slash = key.indexOf("/");
@@ -30,6 +35,9 @@ function parseOverrideKey(key: string): { name: string; selector: string | null 
   return { name: key.slice(0, at), selector: key.slice(at + 1) };
 }
 
+/**
+ * Resolves `$dep` override references against direct package.json dependencies.
+ */
 function resolveDollarRef(value: string, pkg: PackageJson): string {
   if (!value.startsWith("$")) {
     return value;
@@ -49,6 +57,9 @@ function resolveDollarRef(value: string, pkg: PackageJson): string {
   throw new Error(`override value "${value}" references missing dependency "${ref}"`);
 }
 
+/**
+ * Returns true when an override target uses a banned floating tag such as latest.
+ */
 function isBannedOverrideTarget(raw: string): boolean {
   const value = raw.trim();
   if (BANNED_OVERRIDE_TAGS.has(value.toLowerCase())) {
@@ -61,6 +72,9 @@ function isBannedOverrideTarget(raw: string): boolean {
   return false;
 }
 
+/**
+ * Resolves an override target string into a concrete semver version when possible.
+ */
 function parseOverrideTarget(
   raw: string,
   pkg: PackageJson
@@ -85,6 +99,9 @@ interface FlatPin {
   scopedTo: string | null;
 }
 
+/**
+ * Flattens nested npm/pnpm override maps into individual pin records.
+ */
 function flattenOverrides(
   node: Record<string, unknown>,
   trail: string[] = [],
@@ -141,6 +158,9 @@ function flattenOverrides(
   return pins;
 }
 
+/**
+ * Collects dependency request ranges for a package from a normalized lockfile.
+ */
 function collectRequestedRanges(
   packageName: string,
   lock: { packages?: Record<string, unknown> }
@@ -174,11 +194,17 @@ function collectRequestedRanges(
   return requests;
 }
 
+/**
+ * Converts a pnpm lockfile into an npm-like packages map for override checks.
+ */
 function normalizePnpmLock(lock: PnpmLockfile): { packages: Record<string, unknown> } {
   const packages: Record<string, Record<string, unknown>> = {};
   const importers = lock.importers ?? {};
   for (const [importerPath, meta] of Object.entries(importers)) {
     const key = importerPath === "." ? "" : importerPath;
+    /**
+     * Extracts specifier strings from a pnpm importer dependency bucket.
+     */
     const take = (
       bucket: Record<string, { specifier?: string; version?: string } | string> | undefined
     ): Record<string, string> => {
@@ -205,6 +231,9 @@ function normalizePnpmLock(lock: PnpmLockfile): { packages: Record<string, unkno
     };
   }
 
+  /**
+   * Merges resolved dependency maps from packages/snapshots into `packages`.
+   */
   const takeResolved = (section: Record<string, unknown> | undefined) => {
     if (!section) {
       return;
@@ -240,6 +269,9 @@ function normalizePnpmLock(lock: PnpmLockfile): { packages: Record<string, unkno
   return { packages };
 }
 
+/**
+ * Returns true when a dependency request falls within an override selector scope.
+ */
 function requestInOverrideScope(
   requestRange: string,
   selector: string | null
@@ -253,6 +285,9 @@ function requestInOverrideScope(
   return semver.intersects(requestRange, selector, true);
 }
 
+/**
+ * Returns true when a pin version is strictly below a requested range's minimum.
+ */
 function pinBelowRequest(pinVersion: string, requestRange: string): boolean {
   if (semver.satisfies(pinVersion, requestRange, { includePrerelease: true })) {
     return false;
@@ -264,6 +299,9 @@ function pinBelowRequest(pinVersion: string, requestRange: string): boolean {
   return semver.lt(pinVersion, minimum);
 }
 
+/**
+ * Finds override pins that are banned floating tags or below requested ranges.
+ */
 export function findStaleOverridePins(
   pkg: PackageJson,
   lock: NpmLockfile | { packages?: Record<string, unknown> }
@@ -291,7 +329,7 @@ export function findStaleOverridePins(
     if (isBannedOverrideTarget(target.raw)) {
       errors.push({
         override: label,
-        message: `pin must not use floating tag "latest" (got ${target.raw}); pin a concrete semver version instead`,
+        message: `pin must not use floating tag "${BannedRangeTags.Latest}" (got ${target.raw}); pin a concrete semver version instead`,
       });
       continue;
     }
@@ -337,6 +375,9 @@ export function findStaleOverridePins(
   return errors;
 }
 
+/**
+ * Finds keys where package.json and pnpm-workspace.yaml overrides disagree.
+ */
 export function findWorkspaceOverrideDrift(
   pkg: PackageJson,
   workspaceOverrides: Record<string, unknown> | undefined
@@ -363,11 +404,14 @@ export function findWorkspaceOverrideDrift(
   return errors;
 }
 
+/**
+ * Normalizes a lockfile into the packages shape used by override pin checks.
+ */
 export function normalizeLockForOverrides(
-  packageManager: "npm" | "pnpm",
+  packageManager: PackageManager,
   lock: NpmLockfile | PnpmLockfile
 ): { packages?: Record<string, unknown> } {
-  if (packageManager === "pnpm") {
+  if (packageManager === PackageManagers.Pnpm) {
     return normalizePnpmLock(lock as PnpmLockfile);
   }
   return lock as NpmLockfile;

@@ -1,17 +1,26 @@
-import type { AlignedGroup, BeefupConfig } from "../config/types.js";
+import {
+  AlignmentActions,
+  type AlignedGroup,
+  type AlignmentAction,
+  type BeefupConfig,
+} from "../config/types.js";
 import { extractPackageInfoFromName } from "../lockfile/pnpm.js";
 import type { NpmLockfile, PnpmLockfile } from "../lockfile/types.js";
 import {
   DIRECT_DEP_FIELDS,
   type PackageJson,
 } from "../project/package-json.js";
+import { PackageManagers, type PackageManager } from "../project/types.js";
 
 export interface AlignmentFinding {
   group: string;
   message: string;
-  severity: "error" | "warn";
+  severity: AlignmentAction;
 }
 
+/**
+ * Reads a pinned override value, including nested `"."` map forms.
+ */
 function overridePin(value: unknown): string | null {
   if (typeof value === "string") {
     return value;
@@ -22,6 +31,9 @@ function overridePin(value: unknown): string | null {
   return null;
 }
 
+/**
+ * Returns the direct-dependency version spec for `source` from package.json.
+ */
 function expectedVersion(pkg: PackageJson, source: string): string | undefined {
   for (const field of DIRECT_DEP_FIELDS) {
     const spec = pkg[field]?.[source];
@@ -32,12 +44,16 @@ function expectedVersion(pkg: PackageJson, source: string): string | undefined {
   return undefined;
 }
 
+/**
+ * Collects resolved lockfile versions for the given package names.
+ */
 function collectLockVersions(
-  packageManager: "npm" | "pnpm",
+  packageManager: PackageManager,
   lock: NpmLockfile | PnpmLockfile,
   names: Set<string>
 ): Map<string, Set<string>> {
   const found = new Map<string, Set<string>>();
+  /** Records a resolved version for a package name when it is in scope. */
   const add = (name: string, version: string) => {
     if (!names.has(name)) {
       return;
@@ -47,7 +63,7 @@ function collectLockVersions(
     found.set(name, set);
   };
 
-  if (packageManager === "npm") {
+  if (packageManager === PackageManagers.Npm) {
     const packages = (lock as NpmLockfile).packages ?? {};
     for (const [key, meta] of Object.entries(packages)) {
       if (!meta?.version) {
@@ -82,13 +98,16 @@ function collectLockVersions(
   return found;
 }
 
+/**
+ * Checks one aligned group for package.json, override, and lockfile mismatches.
+ */
 function checkGroup(
   group: AlignedGroup,
   pkg: PackageJson,
-  packageManager: "npm" | "pnpm",
+  packageManager: PackageManager,
   lock: NpmLockfile | PnpmLockfile,
   workspaceOverrides: Record<string, unknown> | undefined,
-  defaultAction: "error" | "warn"
+  defaultAction: AlignmentAction
 ): AlignmentFinding[] {
   const severity = group.onMismatch ?? defaultAction;
   const expected = expectedVersion(pkg, group.source);
@@ -176,10 +195,13 @@ function checkGroup(
   return findings;
 }
 
+/**
+ * Finds alignment mismatches for every configured group in the project.
+ */
 export function findAlignmentIssues(
   config: BeefupConfig,
   pkg: PackageJson,
-  packageManager: "npm" | "pnpm",
+  packageManager: PackageManager,
   lock: NpmLockfile | PnpmLockfile,
   workspaceOverrides?: Record<string, unknown>
 ): AlignmentFinding[] {
@@ -192,7 +214,7 @@ export function findAlignmentIssues(
         packageManager,
         lock,
         workspaceOverrides,
-        config.alignment ?? "error"
+        config.alignment ?? AlignmentActions.Error
       )
     );
   }

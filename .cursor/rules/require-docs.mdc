@@ -1,0 +1,56 @@
+---
+description: Require human-readable docs on all functions, methods, and classes
+alwaysApply: true
+---
+
+# Documentation required
+
+Every exported or non-exported **function**, **method**, and **class** must have a short human-readable doc comment describing what it does.
+
+## Requirements
+
+- Prefer JSDoc (`/** ... */`) on TypeScript/JavaScript.
+- Describe **behavior and purpose**, not implementation trivia.
+- Document non-obvious parameters, return values, and thrown errors.
+- One or two sentences is enough when the name is clear; expand when behavior is subtle.
+- Keep docs accurate when changing code — update the comment in the same change.
+
+## Applies to
+
+- Public and private/internal helpers alike
+- Async functions, constructors, and class methods
+- New code and any existing symbol you meaningfully edit
+
+## Does not require
+
+- Trivial one-liner property accessors that only return a field (optional)
+- Test files may use brief docs; still document non-obvious helpers
+
+## Examples
+
+```typescript
+// ❌ BAD — no description
+export async function runReport(options: ReportOptions): Promise<StageReport> {
+  // ...
+}
+
+// ✅ GOOD
+/**
+ * Regenerates the upgrade report for an existing `.beefup/staged` proposal.
+ * Writes markdown and JSON under `.beefup/report`.
+ */
+export async function runReport(options: ReportOptions): Promise<StageReport> {
+  // ...
+}
+
+// ❌ BAD — restates the name only
+/** Diff resolutions. */
+export function diffResolutions(a: Resolution, b: Resolution): ResolutionDiff {}
+
+// ✅ GOOD — says what the result means
+/**
+ * Compares two lockfile resolutions and returns added, removed, upgraded,
+ * and downgraded package changes for dependencies and devDependencies.
+ */
+export function diffResolutions(a: Resolution, b: Resolution): ResolutionDiff {}
+```

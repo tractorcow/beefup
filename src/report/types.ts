@@ -8,6 +8,10 @@ export interface StageReport {
   mode: string;
   strategy: string;
   packageManager: string;
+  /** ISO timestamp when the report was generated. */
+  generatedAt?: string;
+  /** Beefup CLI version that produced the report. */
+  beefupVersion?: string;
   diff: ResolutionDiff;
   ranges: RangeFinding[];
   overrides: OverrideFinding[];

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { BannedRangeTags } from "../config/types.js";
 import { findStaleOverridePins, findWorkspaceOverrideDrift } from "./overrides.js";
 
 describe("findStaleOverridePins", () => {
@@ -21,11 +22,11 @@ describe("findStaleOverridePins", () => {
 
   it("errors when an override uses latest", () => {
     const findings = findStaleOverridePins(
-      { overrides: { ws: "latest" } },
+      { overrides: { ws: BannedRangeTags.Latest } },
       { packages: {} }
     );
     assert.equal(findings.length, 1);
-    assert.match(findings[0].message, /latest/);
+    assert.match(findings[0].message, new RegExp(BannedRangeTags.Latest));
   });
 });
 

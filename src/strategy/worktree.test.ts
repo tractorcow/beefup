@@ -8,14 +8,21 @@ import { promisify } from "node:util";
 
 import { BeefupError } from "../errors.js";
 import { readJsonFile } from "../fsutil.js";
+import { BEEFUP_DIR } from "../project/paths.js";
 import { WorktreeStrategy } from "./worktree.js";
 
 const execFile = promisify(execFileCallback);
 
+/**
+ * Runs a git command in the given working directory.
+ */
 async function git(args: string[], cwd: string): Promise<void> {
   await execFile("git", args, { cwd });
 }
 
+/**
+ * Creates a committed git repo with a minimal package.json and lockfile.
+ */
 async function initRepo(): Promise<string> {
   const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-wt-"));
   await git(["init"], dir);
@@ -47,6 +54,39 @@ describe("WorktreeStrategy", () => {
     }
   });
 
+  it("allows untracked files under .beefup so a previous stage can be re-run", async () => {
+    const dir = await initRepo();
+    const strategy = new WorktreeStrategy(dir);
+    try {
+      await mkdir(path.join(dir, BEEFUP_DIR, "staged"), { recursive: true });
+      await writeFile(
+        path.join(dir, BEEFUP_DIR, "staged", "package.json"),
+        `${JSON.stringify({ name: "demo" }, null, 2)}\n`
+      );
+      const workspace = await strategy.prepare();
+      assert.equal(workspace.root, path.join(dir, BEEFUP_DIR, "work"));
+    } finally {
+      await strategy.cleanup();
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("still fails when a non-.beefup file is dirty alongside .beefup artefacts", async () => {
+    const dir = await initRepo();
+    try {
+      await mkdir(path.join(dir, BEEFUP_DIR, "staged"), { recursive: true });
+      await writeFile(
+        path.join(dir, BEEFUP_DIR, "staged", "package.json"),
+        `${JSON.stringify({ name: "demo" }, null, 2)}\n`
+      );
+      await writeFile(path.join(dir, "dirty.txt"), "nope\n");
+      const strategy = new WorktreeStrategy(dir);
+      await assert.rejects(() => strategy.prepare(), /clean working tree/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("fails outside a git repository", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-nogit-"));
     try {
@@ -62,7 +102,7 @@ describe("WorktreeStrategy", () => {
     const strategy = new WorktreeStrategy(dir);
     try {
       const workspace = await strategy.prepare();
-      assert.equal(workspace.root, path.join(dir, ".beefup", "work"));
+      assert.equal(workspace.root, path.join(dir, BEEFUP_DIR, "work"));
       const live = await readJsonFile<{ dependencies: { leftpad: string } }>(
         path.join(dir, "package.json")
       );
