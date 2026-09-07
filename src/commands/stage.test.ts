@@ -6,6 +6,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { promisify } from "node:util";
 
+import { withSafeChainStubs } from "../__tests__/with-safe-chain-stubs.js";
 import { runStage } from "../commands/stage.js";
 import { ReportFormats, StageStrategies } from "../config/types.js";
 import { readJsonFile, writeJsonFile } from "../fsutil.js";
@@ -73,56 +74,60 @@ packages:
 
 describe("runStage", () => {
   it("worktree writes staged package.json and lockfile without mutating live files", async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-stage-wt-"));
-    await seedPnpmProject(dir);
-    await git(["init"], dir);
-    await git(["config", "user.email", "beefup@example.test"], dir);
-    await git(["config", "user.name", "Beefup"], dir);
-    await git(["add", "."], dir);
-    await git(["commit", "-m", "init"], dir);
+    await withSafeChainStubs(async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-stage-wt-"));
+      await seedPnpmProject(dir);
+      await git(["init"], dir);
+      await git(["config", "user.email", "beefup@example.test"], dir);
+      await git(["config", "user.name", "Beefup"], dir);
+      await git(["add", "."], dir);
+      await git(["commit", "-m", "init"], dir);
 
-    try {
-      const report = await runStage({
-        projectRoot: dir,
-        strategy: StageStrategies.Worktree,
-        format: ReportFormats.Text,
-        runner,
-      });
-      const live = await readJsonFile<PackageJson>(path.join(dir, "package.json"));
-      const staged = await readJsonFile<PackageJson>(
-        path.join(dir, ".beefup", "staged", "package.json")
-      );
-      assert.equal(live.dependencies?.leftpad, "1.0.0");
-      assert.equal(staged.dependencies?.leftpad, "1.3.0");
-      const stagedLock = await readFile(
-        path.join(dir, ".beefup", "staged", "pnpm-lock.yaml"),
-        "utf8"
-      );
-      assert.match(stagedLock, /1\.3\.0/);
-      assert.equal(report.strategy, StageStrategies.Worktree);
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
+      try {
+        const report = await runStage({
+          projectRoot: dir,
+          strategy: StageStrategies.Worktree,
+          format: ReportFormats.Text,
+          runner,
+        });
+        const live = await readJsonFile<PackageJson>(path.join(dir, "package.json"));
+        const staged = await readJsonFile<PackageJson>(
+          path.join(dir, ".beefup", "staged", "package.json")
+        );
+        assert.equal(live.dependencies?.leftpad, "1.0.0");
+        assert.equal(staged.dependencies?.leftpad, "1.3.0");
+        const stagedLock = await readFile(
+          path.join(dir, ".beefup", "staged", "pnpm-lock.yaml"),
+          "utf8"
+        );
+        assert.match(stagedLock, /1\.3\.0/);
+        assert.equal(report.strategy, StageStrategies.Worktree);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
   });
 
   it("inplace writes the same staged outputs and restores the live tree", async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-stage-ip-"));
-    await seedPnpmProject(dir);
-    try {
-      await runStage({
-        projectRoot: dir,
-        strategy: StageStrategies.Inplace,
-        format: ReportFormats.Json,
-        runner,
-      });
-      const live = await readJsonFile<PackageJson>(path.join(dir, "package.json"));
-      const staged = await readJsonFile<PackageJson>(
-        path.join(dir, ".beefup", "staged", "package.json")
-      );
-      assert.equal(live.dependencies?.leftpad, "1.0.0");
-      assert.equal(staged.dependencies?.leftpad, "1.3.0");
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
+    await withSafeChainStubs(async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-stage-ip-"));
+      await seedPnpmProject(dir);
+      try {
+        await runStage({
+          projectRoot: dir,
+          strategy: StageStrategies.Inplace,
+          format: ReportFormats.Json,
+          runner,
+        });
+        const live = await readJsonFile<PackageJson>(path.join(dir, "package.json"));
+        const staged = await readJsonFile<PackageJson>(
+          path.join(dir, ".beefup", "staged", "package.json")
+        );
+        assert.equal(live.dependencies?.leftpad, "1.0.0");
+        assert.equal(staged.dependencies?.leftpad, "1.3.0");
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
   });
 });

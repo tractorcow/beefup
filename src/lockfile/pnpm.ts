@@ -108,8 +108,10 @@ export async function resolvePnpmLockfile(filePath: string): Promise<Resolution>
         name: nameAndVersion.name,
         version,
         path: key,
-        optional: pkg.optional === true ? true : undefined,
       };
+      if (pkg.optional === true) {
+        info.optional = true;
+      }
       if (pkg.dev === true) {
         devDependencies.push(info);
         continue;

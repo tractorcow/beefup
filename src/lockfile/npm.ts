@@ -43,8 +43,10 @@ function extractFromPackagesMap(
       name: packageName,
       version: dep.version,
       path: key,
-      optional: dep.optional === true ? true : undefined,
     };
+    if (dep.optional === true) {
+      info.optional = true;
+    }
     if (dep.dev === true) {
       devDependencies.push(info);
       continue;
@@ -74,8 +76,10 @@ function extractVersion1Tree(
       name,
       version: dep.version,
       path: installPath,
-      optional: dep.optional === true ? true : undefined,
     };
+    if (dep.optional === true) {
+      info.optional = true;
+    }
     if (forceDev || dep.dev === true) {
       devDependencies.push(info);
     } else {
