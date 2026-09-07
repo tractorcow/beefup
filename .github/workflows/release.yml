@@ -3,20 +3,19 @@ on:
   push:
     branches:
       - master
-permissions:
-  contents: write # to be able to publish a GitHub release
-  issues: write # to be able to comment on released issues
-  pull-requests: write # to be able to comment on released pull requests
-  id-token: write # to enable use of OIDC for trusted publishing and npm provenance
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
     environment: release
+    permissions:
+      contents: write # to be able to publish a GitHub release
+      issues: write # to be able to comment on released issues
+      pull-requests: write # to be able to comment on released pull requests
+      id-token: write # to enable use of OIDC for trusted publishing and npm provenance
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       NPM_CONFIG_PROVENANCE: true
-      NPM_CONFIG_REGISTRY: https://registry.npmjs.org
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -28,7 +27,10 @@ jobs:
         with:
           runtime: node@24
           cache: true
-          require-lockfile: true
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Release
         run: pnpm exec semantic-release
