@@ -1,7 +1,6 @@
 {
-  "name": "beefup",
+  "name": "@tractorcow/beefup",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "Staged, pinned, audited dependency upgrades for npm and pnpm.",
   "packageManager": "pnpm@11.22.0",
@@ -18,7 +17,30 @@
   "scripts": {
     "build": "tsc",
     "postbuild": "chmod +x dist/bin.js",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "pnpm run clean && pnpm run build",
+    "lint:commits": "commitlint --from HEAD~1 --to HEAD --verbose",
     "test": "tsx --test --test-reporter spec $(find src -name '*.test.ts')"
+  },
+  "keywords": [
+    "dependencies",
+    "upgrade",
+    "npm",
+    "pnpm",
+    "lockfile",
+    "security",
+    "cve",
+    "semver"
+  ],
+  "author": "Damian Mooyman",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tractorcow/beefup.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "dependencies": {
     "cve-lite-cli": "1.29.0",
@@ -26,8 +48,16 @@
     "yaml": "2.9.0"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^12.0.2",
+    "@semantic-release/npm": "^13.1.2",
+    "@semantic-release/release-notes-generator": "^14.1.0",
     "@types/node": "24.10.1",
     "@types/semver": "7.7.1",
+    "semantic-release": "^25.0.2",
     "tsx": "4.23.12",
     "typescript": "5.9.3"
   }

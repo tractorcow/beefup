@@ -49,7 +49,7 @@ describe("parseNpmAuditJson", () => {
     const findings = parseNpmAuditJson(
       JSON.stringify({
         vulnerabilities: {
-          my-app: {
+          "my-app": {
             name: "my-app",
             severity: "high",
             via: ["lodash", "express"],

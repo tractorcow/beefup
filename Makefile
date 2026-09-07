@@ -29,7 +29,8 @@ install-global: build
 	$(PNPM) add --global "$(CURDIR)"
 
 uninstall-global:
-	$(PNPM) remove --global beefup
+	-$(PNPM) remove --global @tractorcow/beefup
+	-$(PNPM) remove --global beefup
 
 clean:
 	rm -rf dist

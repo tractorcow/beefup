@@ -1,8 +1,6 @@
-# Beefup
+# @tractorcow/beefup
 
 CLI for **staged, pinned, audited** npm/pnpm dependency upgrades. A proposed upgrade is written to `.beefup/staged` for review; nothing is applied to the live project until a later accept step.
-
-This package is **not published to npmjs.com**. Install it from a git checkout with a frozen lockfile.
 
 ## Prerequisites
 
@@ -46,6 +44,20 @@ If that command reports the directory is missing from `PATH`, run `pnpm setup` a
 ## Install
 
 ```sh
+pnpm add --global @tractorcow/beefup
+# or: npm install --global @tractorcow/beefup
+```
+
+Confirm:
+
+```sh
+beefup --version
+beefup --help
+```
+
+### From a git checkout (development)
+
+```sh
 git clone git@github.com:tractorcow/beefup.git
 cd beefup
 pnpm install --frozen-lockfile
@@ -55,18 +67,14 @@ pnpm add --global .
 
 Or from the repo root: `make install && make install-global`.
 
-Confirm:
-
-```sh
-beefup --version
-beefup --help
-```
-
-Do not use `npx` or an unpinned `pnpm add -g beefup` from the public registry.
-
 ## Update
 
-From the same clone:
+```sh
+pnpm add --global @tractorcow/beefup@latest
+# or: npm install --global @tractorcow/beefup@latest
+```
+
+From a git checkout:
 
 ```sh
 cd /path/to/beefup
@@ -78,12 +86,11 @@ pnpm add --global .
 
 Or: `git pull && make install && make install-global`.
 
-Re-running `pnpm add --global .` refreshes the global `beefup` command from this checkout after a rebuild.
-
 ## Uninstall
 
 ```sh
-pnpm remove --global beefup
+pnpm remove --global @tractorcow/beefup
+# or: npm uninstall --global @tractorcow/beefup
 ```
 
 Or: `make uninstall-global`.
@@ -99,4 +106,3 @@ beefup stage --format html
 beefup report
 beefup accept
 ```
-

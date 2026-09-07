@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 
+import { withSafeChainStubs } from "../__tests__/with-safe-chain-stubs.js";
 import { runReport } from "../commands/report.js";
 import {
   ReportFormats,
@@ -96,65 +97,67 @@ packages:
 
 describe("runReport", () => {
   it("regenerates REPORT.html and report.json from an existing staged upgrade", async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-report-"));
-    await seedStagedProject(dir);
-    try {
-      const report = await runReport({
-        projectRoot: dir,
-        format: ReportFormats.Text,
-        runner,
-      });
-      assert.equal(report.strategy, StageStrategies.Inplace);
-      assert.equal(report.mode, UpgradeModes.Latest);
-      const upgraded = report.diff.dependencies.filter(
-        (change) => change.name === "leftpad"
-      );
-      assert.equal(upgraded.length, 1);
-      assert.deepEqual(
-        upgraded[0]?.from.map((item) => item.version),
-        ["1.0.0"]
-      );
-      assert.deepEqual(
-        upgraded[0]?.to.map((item) => item.version),
-        ["1.3.0"]
-      );
+    await withSafeChainStubs(async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-report-"));
+      await seedStagedProject(dir);
+      try {
+        const report = await runReport({
+          projectRoot: dir,
+          format: ReportFormats.Text,
+          runner,
+        });
+        assert.equal(report.strategy, StageStrategies.Inplace);
+        assert.equal(report.mode, UpgradeModes.Latest);
+        const upgraded = report.diff.dependencies.filter(
+          (change) => change.name === "leftpad"
+        );
+        assert.equal(upgraded.length, 1);
+        assert.deepEqual(
+          upgraded[0]?.from.map((item) => item.version),
+          ["1.0.0"]
+        );
+        assert.deepEqual(
+          upgraded[0]?.to.map((item) => item.version),
+          ["1.3.0"]
+        );
 
-      assert.equal(upgraded[0]?.direct, true);
-      assert.ok(report.generatedAt);
-      assert.ok(report.beefupVersion);
+        assert.equal(upgraded[0]?.direct, true);
+        assert.ok(report.generatedAt);
+        assert.ok(report.beefupVersion);
 
-      const html = await readFile(
-        path.join(dir, BEEFUP_DIR, "report", ReportFileNames.Html),
-        "utf8"
-      );
-      assert.match(html, /<h2>Summary<\/h2>/);
-      assert.match(html, /<h2>Security<\/h2>/);
-      assert.match(html, /<strong>leftpad<\/strong>/);
-      assert.match(html, /<h2>Legend<\/h2>/);
-      assert.match(html, /\.beefup\/staged/);
-      assert.match(html, /Beefup:/);
-      assert.match(html, /Generated:/);
-      const summaryIdx = html.indexOf("<h2>Summary</h2>");
-      const securityIdx = html.indexOf("<h2>Security</h2>");
-      const depsIdx = html.indexOf("<h2>Dependencies</h2>");
-      const legendIdx = html.indexOf("<h2>Legend</h2>");
-      assert.ok(summaryIdx >= 0 && securityIdx > summaryIdx);
-      assert.ok(depsIdx < 0 || depsIdx > securityIdx);
-      assert.ok(legendIdx > securityIdx);
-      assert.match(html, /<details open>/);
-      assert.match(html, /Changed Packages \(1\)/);
-      const json = JSON.parse(
-        await readFile(
-          path.join(dir, BEEFUP_DIR, "report", ReportFileNames.Json),
+        const html = await readFile(
+          path.join(dir, BEEFUP_DIR, "report", ReportFileNames.Html),
           "utf8"
-        )
-      ) as StageReport;
-      assert.equal(json.strategy, StageStrategies.Inplace);
-      assert.ok(json.generatedAt);
-      assert.ok(json.beefupVersion);
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
+        );
+        assert.match(html, /<h2>Summary<\/h2>/);
+        assert.match(html, /<h2>Security<\/h2>/);
+        assert.match(html, /<strong>leftpad<\/strong>/);
+        assert.match(html, /<h2>Legend<\/h2>/);
+        assert.match(html, /\.beefup\/staged/);
+        assert.match(html, /Beefup:/);
+        assert.match(html, /Generated:/);
+        const summaryIdx = html.indexOf("<h2>Summary</h2>");
+        const securityIdx = html.indexOf("<h2>Security</h2>");
+        const depsIdx = html.indexOf("<h2>Dependencies</h2>");
+        const legendIdx = html.indexOf("<h2>Legend</h2>");
+        assert.ok(summaryIdx >= 0 && securityIdx > summaryIdx);
+        assert.ok(depsIdx < 0 || depsIdx > securityIdx);
+        assert.ok(legendIdx > securityIdx);
+        assert.match(html, /<details open>/);
+        assert.match(html, /Changed Packages \(1\)/);
+        const json = JSON.parse(
+          await readFile(
+            path.join(dir, BEEFUP_DIR, "report", ReportFileNames.Json),
+            "utf8"
+          )
+        ) as StageReport;
+        assert.equal(json.strategy, StageStrategies.Inplace);
+        assert.ok(json.generatedAt);
+        assert.ok(json.beefupVersion);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
   });
 
   it("renders optional sections, single-column add/remove, titles, and meta-vuln labels", () => {

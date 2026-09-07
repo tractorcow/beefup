@@ -8,7 +8,7 @@ The live project is left unchanged until you run `beefup accept`.
 
 - [Staging](stage.md) — `beefup stage` / `beefup report`, strategies, and project config
 - [Accept](accept.md) — `beefup accept`, applying the staged upgrade and frozen install
-- [Install and update](../README.md) — global install from a git checkout (not npmjs.com)
+- [Install and update](../README.md) — global install from npm (`@tractorcow/beefup`) or a git checkout
 
 ## Requirements
 

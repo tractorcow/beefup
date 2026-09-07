@@ -26,9 +26,13 @@ const OSV_ID_RE = /^OSV-[A-Za-z0-9._-]+$/;
 /**
  * Encodes a single URL path segment so attacker-controlled ids cannot break
  * out of the path or inject markdown / HTML into report links.
+ * Extends encodeURIComponent to also percent-encode `()` (not encoded by default,
+ * but they break markdown `[text](url)` links).
  */
 function encodePathSegment(segment: string): string {
-  return encodeURIComponent(segment);
+  return encodeURIComponent(segment)
+    .replace(/\(/g, "%28")
+    .replace(/\)/g, "%29");
 }
 
 /**
