@@ -23,7 +23,10 @@ jobs:
         with:
           runtime: node@24
           cache: true
-          require-lockfile: true
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Check commit messages
         if: github.event_name == 'pull_request'
