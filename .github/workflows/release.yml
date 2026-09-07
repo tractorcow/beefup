@@ -29,6 +29,11 @@ jobs:
           cache: true
           install: false
 
+      # pnpm runtime installs Node without npm/npx/corepack; trusted publishing
+      # needs npm >= 11.5.1 so `npm publish` can perform the OIDC exchange.
+      - name: Install npm CLI for trusted publishing
+        run: pnpm add -g npm@latest
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
