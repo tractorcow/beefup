@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { CliCommands, ReportFormats } from "../config/types.js";
+import { CliCommands, ReportFormats, type ReportFormat } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { pathExists } from "../fsutil.js";
 import { installFromLockfile } from "../pm/install.js";
@@ -20,6 +20,7 @@ import { runReport } from "./report.js";
 export interface RevertOptions {
   projectRoot: string;
   packageRoot?: string;
+  format?: ReportFormat;
   runner?: ProcessRunner;
 }
 
@@ -70,7 +71,7 @@ export async function runRevert(options: RevertOptions): Promise<RevertResult> {
   await runReport({
     projectRoot,
     packageRoot: packageRoot.relative,
-    format: ReportFormats.Color,
+    format: options.format ?? ReportFormats.Html,
     runner,
   });
 

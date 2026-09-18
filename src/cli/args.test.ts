@@ -12,11 +12,11 @@ import { BeefupError } from "../errors.js";
 import { parseCliArgs, showHelp } from "./args.js";
 
 describe("parseCliArgs", () => {
-  it("defaults to color format and leaves strategy unset", () => {
+  it("defaults to html format and leaves strategy unset", () => {
     const args = parseCliArgs(["node", "beefup", CliCommands.Stage]);
     assert.equal(args.command, CliCommands.Stage);
     assert.equal(args.strategy, undefined);
-    assert.equal(args.format, ReportFormats.Color);
+    assert.equal(args.format, ReportFormats.Html);
     assert.equal(args.mode, undefined);
   });
 
@@ -26,10 +26,35 @@ describe("parseCliArgs", () => {
       "beefup",
       CliCommands.Report,
       "--format",
-      ReportFormats.Json,
+      ReportFormats.Markdown,
     ]);
     assert.equal(args.command, CliCommands.Report);
-    assert.equal(args.format, ReportFormats.Json);
+    assert.equal(args.format, ReportFormats.Markdown);
+  });
+
+  it("rejects json and color report formats", () => {
+    assert.throws(
+      () =>
+        parseCliArgs([
+          "node",
+          "beefup",
+          CliCommands.Report,
+          "--format",
+          "json",
+        ]),
+      BeefupError
+    );
+    assert.throws(
+      () =>
+        parseCliArgs([
+          "node",
+          "beefup",
+          CliCommands.Report,
+          "--format",
+          "color",
+        ]),
+      BeefupError
+    );
   });
 
   it("parses accept command", () => {
@@ -111,9 +136,12 @@ describe("parseCliArgs", () => {
     assert.match(showHelp(), new RegExp(CliOptionFlags.PackageRoot));
   });
 
-  it("lists color and html report formats in help", () => {
+  it("lists html markdown and text report formats in help", () => {
     const help = showHelp();
-    assert.match(help, new RegExp(`\\b${ReportFormats.Color}\\b`));
     assert.match(help, new RegExp(`\\b${ReportFormats.Html}\\b`));
+    assert.match(help, new RegExp(`\\b${ReportFormats.Markdown}\\b`));
+    assert.match(help, new RegExp(`\\b${ReportFormats.Text}\\b`));
+    assert.doesNotMatch(help, /\bcolor\b/);
+    assert.doesNotMatch(help, /--format json/);
   });
 });

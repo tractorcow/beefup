@@ -7,8 +7,6 @@ beefup stage
 beefup stage --mode latest --strategy inplace
 beefup stage --dir /path/to/project --format markdown
 beefup stage --package-root ./app
-beefup report
-beefup report --format json
 ```
 
 ## What it does
@@ -22,18 +20,7 @@ beefup report --format json
 7. Copies manifests and the lockfile to `.beefup/staged`.
 8. Deletes `.beefup/prior` if it exists, so only a proposal snapshot remains.
 9. Restores or discards the isolated workspace so the live tree matches the start state.
-10. Writes a report via `beefup report` (package diff with all scoped installs, policy, CVE introduced / unresolved / fixed).
-
-Package diffs compare **path-for-path** (including nested installs and multiple versions of the same package). Displayed from/to columns list unique version tags only.
-
-To regenerate that report later without re-running the upgrade proposal:
-
-```sh
-beefup report
-beefup report --format markdown
-```
-
-`beefup report` compares **live vs staged** when `.beefup/staged` exists (a proposal). After `accept`, `rewind`, or `revert`, only `.beefup/prior` remains, so the report compares **prior vs live** (the applied upgrade or restored baseline). `.beefup/staged` and `.beefup/prior` are never kept at the same time.
+10. Writes a report via `beefup report` (live vs staged). See [report](report.md).
 
 ## Options
 
@@ -43,7 +30,7 @@ beefup report --format markdown
 | `--strategy` | `worktree`, `inplace` | `worktree` |
 | `--dir` | path | current working directory |
 | `--package-root` | path | project root (the directory with `package.json` and the lockfile) |
-| `--format` | `color`, `text`, `markdown`, `json`, `html` | `color` (stdout; files are always HTML + JSON) |
+| `--format` | `html`, `markdown`, `text` | `html` (file under `.beefup/report`; `report.json` is always written) |
 
 `--mode` overrides project config. `same-major` rewrites pins to `^<current>`. `latest` rewrites them to `>=<current>`. After lockfile regeneration, specs are re-pinned to exact versions.
 
@@ -69,14 +56,9 @@ After a successful stage, `.beefup/staged` (always at the project root) contains
 - `package-lock.json` or `pnpm-lock.yaml`
 - `pnpm-workspace.yaml` when present
 
-Reports are written separately under `.beefup/report`:
+`--format` selects the human-readable file under `.beefup/report` (`REPORT.html` by default). `report.json` is always written. Stdout is automatic colour or plain text. See [report](report.md) for comparison context, file layout, and formats.
 
-- `REPORT.html` — Summary (counts, beefup version, timestamp) → Security (Introduced → Unresolved → Fixed, with colour-coded severity and version diffs) → Policy → collapsible package diffs → Legend / paths
-- `report.json`
-
-Package diffs split optional/platform packages into their own section, bold direct names and italicize transitive ones, use a single Version column for added/removed, and omit path-only churn (same unique versions, different install paths). Meta-vulns from npm audit are kept and labeled `transitive (via …)` instead of blank references. **Unresolved** findings are still open after the upgrade (formerly called retained). From-versions are shown in red (struck through in HTML); to-versions in green.
-
-Stdout prints the report in `--format` (`color` by default: ANSI severity and version colours on a TTY; `NO_COLOR` or a non-TTY stdout falls back to plain text). Use `--format text` for uncoloured output, or `--format html` / `markdown` / `json` for those encodings. Diff the live project against `.beefup/staged` to review a proposal, or `.beefup/prior` against live after accept or rewind. Tweak pins or overrides in the live project and run `beefup stage` again until the proposal is acceptable. Use `beefup report` to refresh `.beefup/report` (and stdout) after changing scanners or policy without re-staging. When the proposal is acceptable, run `beefup accept` to apply it.
+Tweak pins or overrides in the live project and run `beefup stage` again until the proposal is acceptable. When it is, run `beefup accept` to apply it.
 
 ## Project config
 

@@ -28,8 +28,9 @@ There is no policy gate: prior was previously live. Scripts may run, same as acc
 | --- | --- | --- |
 | `--dir` | path | current working directory |
 | `--package-root` | path | project root, or the value stored in the last report |
+| `--format` | `html`, `markdown`, `text` | `html` (file under `.beefup/report`) |
 
-`--mode`, `--strategy`, and `--format` are ignored.
+`--mode` and `--strategy` are ignored. `--format` applies to the report written after revert.
 
 ## Failures
 

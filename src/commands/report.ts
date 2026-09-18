@@ -17,7 +17,7 @@ import {
 } from "../config/types.js";
 import { annotatePackageChanges, diffResolutions } from "../diff/diff.js";
 import { BeefupError } from "../errors.js";
-import { pathExists, readJsonFile } from "../fsutil.js";
+import { pathExists, readJsonFile, removePath } from "../fsutil.js";
 import { resolveLockfile } from "../lockfile/resolve.js";
 import { defaultProcessRunner, type ProcessRunner } from "../pm/runner.js";
 import { assertNpmVersion, resolveProtectedPm } from "../pm/safe-chain.js";
@@ -25,7 +25,13 @@ import { assertPolicy, evaluatePolicy } from "../policy/evaluate.js";
 import { detectProject } from "../project/detect.js";
 import { collectDirectDependencyNames } from "../project/direct-deps.js";
 import { resolveCommandPackageRoot } from "../project/package-root.js";
-import { priorDir, reportDir, ReportFileNames, stagedDir } from "../project/paths.js";
+import {
+  HumanReportFileNames,
+  priorDir,
+  reportDir,
+  ReportFileNames,
+  stagedDir,
+} from "../project/paths.js";
 import { PackageManagers } from "../project/types.js";
 import { ansiColorEnabled } from "../report/ansi.js";
 import { renderHtml } from "../report/html.js";
@@ -100,7 +106,7 @@ async function resolveReportTrees(
 
 /**
  * Regenerates the upgrade report for a staged proposal or an applied/prior baseline.
- * Writes HTML and JSON under `.beefup/report`.
+ * Writes `report.json` and one human-readable file under `.beefup/report`.
  */
 export async function runReport(options: ReportOptions): Promise<StageReport> {
   const projectRoot = path.resolve(options.projectRoot);
@@ -190,9 +196,15 @@ export async function runReport(options: ReportOptions): Promise<StageReport> {
   };
 
   await mkdir(reports, { recursive: true });
+  const humanFile = DiskReportFileByFormat[options.format];
+  for (const name of HumanReportFileNames) {
+    if (name !== humanFile) {
+      await removePath(path.join(reports, name));
+    }
+  }
   await writeFile(
-    path.join(reports, ReportFileNames.Html),
-    renderHtml(report),
+    path.join(reports, humanFile),
+    renderDiskReport(report, options.format),
     "utf8"
   );
   await writeFile(
@@ -205,23 +217,31 @@ export async function runReport(options: ReportOptions): Promise<StageReport> {
   return report;
 }
 
+/** On-disk human-readable file for each `--format` value. */
+const DiskReportFileByFormat = {
+  [ReportFormats.Html]: ReportFileNames.Html,
+  [ReportFormats.Markdown]: ReportFileNames.Markdown,
+  [ReportFormats.Text]: ReportFileNames.Text,
+} as const;
+
 /**
- * Formats a stage report for stdout as color, text, markdown, JSON, or HTML.
+ * Renders the durable on-disk report for `html`, `markdown`, or `text`.
  */
-export function printReport(report: StageReport, format: ReportFormat): string {
-  if (format === ReportFormats.Json) {
-    return `${JSON.stringify(report, null, 2)}\n`;
-  }
+function renderDiskReport(report: StageReport, format: ReportFormat): string {
   if (format === ReportFormats.Markdown) {
     return renderMarkdown(report);
   }
-  if (format === ReportFormats.Html) {
-    return renderHtml(report);
+  if (format === ReportFormats.Text) {
+    return renderText(report);
   }
-  if (format === ReportFormats.Color) {
-    return renderText(report, { color: ansiColorEnabled() });
-  }
-  return renderText(report);
+  return renderHtml(report);
+}
+
+/**
+ * Formats a stage report for stdout as colour text on a TTY, or plain text otherwise.
+ */
+export function printReport(report: StageReport): string {
+  return renderText(report, { color: ansiColorEnabled() });
 }
 
 /**

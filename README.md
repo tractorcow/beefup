@@ -97,12 +97,12 @@ Or: `make uninstall-global`.
 
 ## Usage
 
-See [docs/index.md](docs/index.md), [staging](docs/stage.md), [accept](docs/accept.md), [revert](docs/revert.md), and [rewind](docs/rewind.md).
+See [docs/index.md](docs/index.md), [staging](docs/stage.md), [report](docs/report.md), [accept](docs/accept.md), [revert](docs/revert.md), and [rewind](docs/rewind.md).
 
 ```sh
 beefup stage
 beefup stage --mode latest --strategy inplace
-beefup stage --format html
+beefup stage --format markdown
 beefup stage --package-root ./app
 beefup report
 beefup accept
