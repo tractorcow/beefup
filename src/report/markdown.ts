@@ -4,10 +4,13 @@ import { groupByChangeType } from "../diff/group.js";
 import {
   type PackageChange,
 } from "../diff/types.js";
+import { BEEFUP_DIR } from "../project/paths.js";
 import type { SecurityFinding } from "../security/classify.js";
 import { META_VULN_TITLE } from "../security/npm-audit.js";
 import { formatRefsMarkdown } from "../security/refs.js";
 import {
+  comparisonLabel,
+  comparisonPathsLine,
   packageChangeCounts,
   policyIssueCount,
   SecuritySectionIntros,
@@ -185,6 +188,7 @@ function formatSummary(report: StageReport): string {
     `- Mode: \`${report.mode}\``,
     `- Strategy: \`${report.strategy}\``,
     `- Package manager: \`${report.packageManager}\``,
+    `- Comparison: ${comparisonLabel(report.comparison)}`,
   ];
   if (report.beefupVersion) {
     lines.push(`- Beefup: \`${report.beefupVersion}\``);
@@ -231,7 +235,7 @@ function formatPolicy(report: StageReport): string {
 /**
  * Renders footer legend and path hints.
  */
-function formatFooter(): string {
+function formatFooter(report: StageReport): string {
   return [
     "## Legend",
     "",
@@ -242,8 +246,8 @@ function formatFooter(): string {
     "",
     "## Paths",
     "",
-    "- Staged proposal: `.beefup/staged`",
-    "- This report: `.beefup/report`",
+    `- ${comparisonPathsLine(report.comparison)}`,
+    `- This report: \`${BEEFUP_DIR}/report\``,
   ].join("\n");
 }
 
@@ -299,7 +303,7 @@ export function renderMarkdown(report: StageReport): string {
     }
   }
 
-  parts.push("", formatFooter());
+  parts.push("", formatFooter(report));
 
   return `${parts.join("\n")}\n`;
 }

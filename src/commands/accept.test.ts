@@ -12,7 +12,7 @@ import { pathExists, readJsonFile, writeJsonFile } from "../fsutil.js";
 import { frozenInstallArgs } from "../pm/install.js";
 import type { ProcessRunner } from "../pm/runner.js";
 import type { PackageJson } from "../project/package-json.js";
-import { inProgressPath, stagedDir } from "../project/paths.js";
+import { inProgressPath, priorDir, stagedDir } from "../project/paths.js";
 import { PackageManagers } from "../project/types.js";
 
 const runner: ProcessRunner = {
@@ -88,15 +88,49 @@ describe("runAccept", () => {
         assert.equal(live.dependencies?.leftpad, "1.3.0");
         const liveLock = await readFile(path.join(dir, "pnpm-lock.yaml"), "utf8");
         assert.match(liveLock, /1\.3\.0/);
+        const prior = await readJsonFile<PackageJson>(
+          path.join(priorDir(dir), "package.json")
+        );
+        assert.equal(prior.dependencies?.leftpad, "1.0.0");
+        const priorLock = await readFile(
+          path.join(priorDir(dir), "pnpm-lock.yaml"),
+          "utf8"
+        );
+        assert.match(priorLock, /1\.0\.0/);
         assert.equal(result.packageManager, PackageManagers.Pnpm);
         assert.ok(result.copied.includes("package.json"));
         assert.ok(result.copied.includes("pnpm-lock.yaml"));
-        assert.equal(calls.length, 1);
         const expected = frozenInstallArgs(PackageManagers.Pnpm);
-        assert.ok(expected.every((arg) => calls[0]?.args.includes(arg)));
-        assert.equal(calls[0]?.args.includes("update"), false);
-        assert.equal(calls[0]?.cwd, path.resolve(dir));
+        const installCalls = calls.filter((call) =>
+          expected.every((arg) => call.args.includes(arg))
+        );
+        assert.equal(installCalls.length, 1);
+        assert.equal(installCalls[0]?.args.includes("update"), false);
+        assert.equal(installCalls[0]?.cwd, path.resolve(dir));
         assert.equal(await pathExists(path.join(stagedDir(dir), "package.json")), true);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  it("does not overwrite prior when live already matches staged", async () => {
+    await withSafeChainStubs(async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-accept-re-"));
+      await seedStagedProject(dir);
+      try {
+        await runAccept({ projectRoot: dir, runner });
+        await writeJsonFile(path.join(priorDir(dir), "package.json"), {
+          name: "sentinel-prior",
+          version: "0.0.0",
+        });
+        await runAccept({ projectRoot: dir, runner });
+        const prior = await readJsonFile<PackageJson>(
+          path.join(priorDir(dir), "package.json")
+        );
+        assert.equal(prior.name, "sentinel-prior");
+        const live = await readJsonFile<PackageJson>(path.join(dir, "package.json"));
+        assert.equal(live.dependencies?.leftpad, "1.3.0");
       } finally {
         await rm(dir, { recursive: true, force: true });
       }

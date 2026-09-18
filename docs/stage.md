@@ -6,6 +6,7 @@
 beefup stage
 beefup stage --mode latest --strategy inplace
 beefup stage --dir /path/to/project --format markdown
+beefup stage --package-root ./app
 beefup report
 beefup report --format json
 ```
@@ -31,6 +32,8 @@ beefup report
 beefup report --format markdown
 ```
 
+`beefup report` compares **live vs staged** while the staged lockfile differs from live (a proposal). After `accept` or `rewind`, when staged matches live (or there is no differing staged tree) and `.beefup/prior` exists, it compares **prior vs live** (the applied upgrade). After `revert`, staged typically differs again, so the report returns to the proposal context.
+
 ## Options
 
 | Option | Values | Default |
@@ -38,15 +41,18 @@ beefup report --format markdown
 | `--mode` | `same-major`, `latest` | `same-major`, or `beefup.mode` in project config |
 | `--strategy` | `worktree`, `inplace` | `worktree` |
 | `--dir` | path | current working directory |
+| `--package-root` | path | project root (the directory with `package.json` and the lockfile) |
 | `--format` | `color`, `text`, `markdown`, `json`, `html` | `color` (stdout; files are always HTML + JSON) |
 
 `--mode` overrides project config. `same-major` rewrites pins to `^<current>`. `latest` rewrites them to `>=<current>`. After lockfile regeneration, specs are re-pinned to exact versions.
+
+Run Beefup at the project (git) root. Use `--package-root ./app` when `package.json` and the lockfile live in a subdirectory. Later `report` / `accept` / `revert` / `rewind` reuse that path from `report.json` if you omit the flag.
 
 ## Strategies
 
 Both strategies produce the same output: rewritten `package.json` file(s) and lockfile under `.beefup/staged`. They differ in where the package manager runs.
 
-**`worktree` (default)** — `git worktree add --detach .beefup/work HEAD`. The live tree is never mutated. Fails if the directory is not a git repository, or if `git status --porcelain` shows staged, unstaged, or untracked files **outside** `.beefup/` (a previous stage's artefacts do not block re-stage). Leftover worktrees from a crashed run are removed first. Projects may gitignore `.beefup` so it stays out of everyday `git status`; Beefup does not edit `.gitignore`.
+**`worktree` (default)** — `git worktree add --detach .beefup/work HEAD` at the **project root** (git root / `--dir`). The live tree is never mutated. If `--package-root` is set, the package manager runs in that subdirectory of the worktree. Fails if the directory is not a git repository, or if `git status --porcelain` shows staged, unstaged, or untracked files **outside** `.beefup/` (a previous stage's artefacts do not block re-stage). Leftover worktrees from a crashed run are removed first. Projects may gitignore `.beefup` so it stays out of everyday `git status`; Beefup does not edit `.gitignore`.
 
 **`inplace`** — backups every file Beefup might write (workspace `package.json` files, lockfile, `pnpm-workspace.yaml`) to `.beefup/backup`, mutates the real workspace so globs such as `apps/*` still resolve, copies the proposal to `.beefup/staged`, then restores the originals. Use this when the working tree is dirty. If `.beefup/IN_PROGRESS` is left behind after a crash, the next run restores from backup before starting.
 
@@ -56,7 +62,7 @@ beefup stage --strategy inplace
 
 ## Output
 
-After a successful stage, `.beefup/staged` contains only the proposed project files:
+After a successful stage, `.beefup/staged` (always at the project root) contains only the proposed package files, relative to `--package-root` (so `app/package.json` is stored as `.beefup/staged/package.json`):
 
 - Root and workspace `package.json` files
 - `package-lock.json` or `pnpm-lock.yaml`
@@ -69,7 +75,7 @@ Reports are written separately under `.beefup/report`:
 
 Package diffs split optional/platform packages into their own section, bold direct names and italicize transitive ones, use a single Version column for added/removed, and omit path-only churn (same unique versions, different install paths). Meta-vulns from npm audit are kept and labeled `transitive (via …)` instead of blank references. **Unresolved** findings are still open after the upgrade (formerly called retained). From-versions are shown in red (struck through in HTML); to-versions in green.
 
-Stdout prints the report in `--format` (`color` by default: ANSI severity and version colours on a TTY; `NO_COLOR` or a non-TTY stdout falls back to plain text). Use `--format text` for uncoloured output, or `--format html` / `markdown` / `json` for those encodings. Diff the live project against `.beefup/staged` to review the proposal. Tweak pins or overrides in the live project and run `beefup stage` again until the proposal is acceptable. Use `beefup report` to refresh `.beefup/report` (and stdout) after changing scanners or policy without re-staging. When the proposal is acceptable, run `beefup accept` to apply it.
+Stdout prints the report in `--format` (`color` by default: ANSI severity and version colours on a TTY; `NO_COLOR` or a non-TTY stdout falls back to plain text). Use `--format text` for uncoloured output, or `--format html` / `markdown` / `json` for those encodings. Diff the live project against `.beefup/staged` to review a proposal, or `.beefup/prior` against live after accept or rewind. Tweak pins or overrides in the live project and run `beefup stage` again until the proposal is acceptable. Use `beefup report` to refresh `.beefup/report` (and stdout) after changing scanners or policy without re-staging. When the proposal is acceptable, run `beefup accept` to apply it.
 
 ## Project config
 

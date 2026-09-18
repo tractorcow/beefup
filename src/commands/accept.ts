@@ -1,20 +1,28 @@
 import path from "node:path";
 
 import { loadConfig } from "../config/load.js";
-import { CliCommands } from "../config/types.js";
+import { CliCommands, ReportFormats } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { pathExists } from "../fsutil.js";
 import { installFromLockfile } from "../pm/install.js";
 import { defaultProcessRunner, type ProcessRunner } from "../pm/runner.js";
 import { assertNpmVersion, resolveProtectedPm } from "../pm/safe-chain.js";
 import { assertPolicy, evaluatePolicy } from "../policy/evaluate.js";
-import { applyStagedOutputs, requireStagedUpgrade } from "../project/collect.js";
+import {
+  applyStagedOutputs,
+  collectPriorOutputs,
+  filesByteEqual,
+  requireStagedUpgrade,
+} from "../project/collect.js";
 import { detectProject } from "../project/detect.js";
-import { inProgressPath } from "../project/paths.js";
+import { resolveCommandPackageRoot } from "../project/package-root.js";
+import { inProgressPath, stagedDir } from "../project/paths.js";
 import { PackageManagers, type PackageManager } from "../project/types.js";
+import { runReport } from "./report.js";
 
 export interface AcceptOptions {
   projectRoot: string;
+  packageRoot?: string;
   runner?: ProcessRunner;
 }
 
@@ -25,13 +33,17 @@ export interface AcceptResult {
 }
 
 /**
- * Applies `.beefup/staged` manifests and lockfile to the live project, then
- * installs from that reviewed lockfile via Safe Chain (`npm ci` / frozen pnpm).
+ * Snapshots live files to `.beefup/prior` (unless already applied), copies staged
+ * onto the live tree, installs from the frozen lockfile, then regenerates the report.
  */
 export async function runAccept(options: AcceptOptions): Promise<AcceptResult> {
   const projectRoot = path.resolve(options.projectRoot);
+  const packageRoot = await resolveCommandPackageRoot(
+    projectRoot,
+    options.packageRoot
+  );
   const runner = options.runner ?? defaultProcessRunner;
-  const project = await detectProject(projectRoot);
+  const project = await detectProject(packageRoot.absolute);
   const staged = await requireStagedUpgrade(projectRoot, project.lockfileName);
 
   const inProgress = inProgressPath(projectRoot);
@@ -46,7 +58,7 @@ export async function runAccept(options: AcceptOptions): Promise<AcceptResult> {
     await assertNpmVersion(protectedPm);
   }
 
-  const config = await loadConfig(projectRoot);
+  const config = await loadConfig(packageRoot.absolute);
   const policy = await evaluatePolicy(
     staged,
     project.packageManager,
@@ -55,11 +67,31 @@ export async function runAccept(options: AcceptOptions): Promise<AcceptResult> {
   );
   assertPolicy(policy);
 
-  const copied = await applyStagedOutputs(projectRoot, project.lockfileName);
+  const stagedLock = path.join(stagedDir(projectRoot), project.lockfileName);
+  if (!(await filesByteEqual(project.lockfilePath, stagedLock))) {
+    await collectPriorOutputs(
+      packageRoot.absolute,
+      projectRoot,
+      project.lockfileName
+    );
+  }
+
+  const copied = await applyStagedOutputs(
+    projectRoot,
+    packageRoot.absolute,
+    project.lockfileName
+  );
   await installFromLockfile({
     pm: protectedPm,
     packageManager: project.packageManager,
-    cwd: projectRoot,
+    cwd: packageRoot.absolute,
+    runner,
+  });
+
+  await runReport({
+    projectRoot,
+    packageRoot: packageRoot.relative,
+    format: ReportFormats.Color,
     runner,
   });
 

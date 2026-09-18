@@ -2,9 +2,12 @@ import { AlignmentActions } from "../config/types.js";
 import { formatUniqueVersions } from "../diff/diff.js";
 import { groupByChangeType } from "../diff/group.js";
 import { type PackageChange } from "../diff/types.js";
+import { BEEFUP_DIR } from "../project/paths.js";
 import type { SecurityFinding } from "../security/classify.js";
 import { META_VULN_TITLE } from "../security/npm-audit.js";
 import {
+  comparisonLabel,
+  comparisonPathsLine,
   packageChangeCounts,
   policyIssueCount,
   SecuritySectionIntros,
@@ -176,6 +179,7 @@ function formatSummary(report: StageReport): string {
     `<li>Mode: <code>${escapeHtml(report.mode)}</code></li>`,
     `<li>Strategy: <code>${escapeHtml(report.strategy)}</code></li>`,
     `<li>Package manager: <code>${escapeHtml(report.packageManager)}</code></li>`,
+    `<li>Comparison: ${escapeHtml(comparisonLabel(report.comparison))}</li>`,
   ];
   if (report.beefupVersion) {
     items.push(`<li>Beefup: <code>${escapeHtml(report.beefupVersion)}</code></li>`);
@@ -264,8 +268,8 @@ footer { color: var(--muted); font-size: 0.9rem; }
 /**
  * Renders footer legend and path hints.
  */
-function formatFooter(): string {
-  return `<footer><h2>Legend</h2><ul><li><strong>Bold</strong> package names are direct dependencies (declared in a workspace <code>package.json</code>).</li><li><em>Italic</em> package names are transitive.</li><li><strong>Optional / platform</strong> sections list packages marked optional in the lockfile or <code>optionalDependencies</code> (still security-scanned).</li><li>Security rows titled “${escapeHtml(META_VULN_TITLE)}” are npm meta-vulns: the package has no advisory of its own but depends on a vulnerable package.</li></ul><h2>Paths</h2><ul><li>Staged proposal: <code>.beefup/staged</code></li><li>This report: <code>.beefup/report</code></li></ul></footer>`;
+function formatFooter(report: StageReport): string {
+  return `<footer><h2>Legend</h2><ul><li><strong>Bold</strong> package names are direct dependencies (declared in a workspace <code>package.json</code>).</li><li><em>Italic</em> package names are transitive.</li><li><strong>Optional / platform</strong> sections list packages marked optional in the lockfile or <code>optionalDependencies</code> (still security-scanned).</li><li>Security rows titled “${escapeHtml(META_VULN_TITLE)}” are npm meta-vulns: the package has no advisory of its own but depends on a vulnerable package.</li></ul><h2>Paths</h2><ul><li>${escapeHtml(comparisonPathsLine(report.comparison))}</li><li>This report: <code>${BEEFUP_DIR}/report</code></li></ul></footer>`;
 }
 
 /**
@@ -327,7 +331,7 @@ ${formatPolicy(report)}
 ${deps}
 ${devDeps}
 ${warnings}
-${formatFooter()}
+${formatFooter(report)}
 </main>
 </body>
 </html>

@@ -15,11 +15,12 @@ export class InPlaceStrategy implements StageStrategy {
   private backedUp = false;
 
   /**
-   * Creates an in-place strategy for the given project root and lockfile name.
+   * Creates an in-place strategy for the project root, lockfile, and package dir.
    */
   constructor(
     private readonly projectRoot: string,
-    private readonly lockfileName: string
+    private readonly lockfileName: string,
+    private readonly packageRoot: string = projectRoot
   ) {}
 
   /**
@@ -36,7 +37,7 @@ export class InPlaceStrategy implements StageStrategy {
       "utf8"
     );
     this.backedUp = true;
-    return { root: this.projectRoot };
+    return { root: this.packageRoot };
   }
 
   /**
@@ -57,11 +58,11 @@ export class InPlaceStrategy implements StageStrategy {
     await removePath(dest);
     await mkdir(dest, { recursive: true });
     const rels = await listWritableRelativePaths(
-      this.projectRoot,
+      this.packageRoot,
       this.lockfileName
     );
     for (const rel of rels) {
-      const from = path.join(this.projectRoot, rel);
+      const from = path.join(this.packageRoot, rel);
       if (await pathExists(from)) {
         await copyFileTo(from, path.join(dest, rel));
       }
@@ -78,13 +79,13 @@ export class InPlaceStrategy implements StageStrategy {
       return;
     }
     const rels = await listWritableRelativePaths(
-      this.projectRoot,
+      this.packageRoot,
       this.lockfileName
     );
     for (const rel of rels) {
       const from = path.join(dest, rel);
       if (await pathExists(from)) {
-        await copyFileTo(from, path.join(this.projectRoot, rel));
+        await copyFileTo(from, path.join(this.packageRoot, rel));
       }
     }
     await removePath(inProgressPath(this.projectRoot));

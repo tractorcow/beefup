@@ -1,4 +1,6 @@
+import { ReportComparisons, type ReportComparison } from "../config/types.js";
 import { groupByChangeType } from "../diff/group.js";
+import { BEEFUP_DIR, BeefupSnapshots } from "../project/paths.js";
 import type { StageReport } from "./types.js";
 
 /** Display titles for security finding buckets. */
@@ -40,4 +42,28 @@ export function packageChangeCounts(report: StageReport): {
  */
 export function policyIssueCount(report: StageReport): number {
   return report.ranges.length + report.overrides.length + report.alignment.length;
+}
+
+/**
+ * Returns a human-readable label for which trees a report compared.
+ */
+export function comparisonLabel(
+  comparison: ReportComparison | undefined
+): string {
+  if (comparison === ReportComparisons.Applied) {
+    return "prior (old) vs live (new)";
+  }
+  return "live (old) vs staged (new)";
+}
+
+/**
+ * Returns the path hint for the report's old/baseline tree.
+ */
+export function comparisonPathsLine(
+  comparison: ReportComparison | undefined
+): string {
+  if (comparison === ReportComparisons.Applied) {
+    return `Baseline: ${BEEFUP_DIR}/${BeefupSnapshots.Prior}`;
+  }
+  return `Staged proposal: ${BEEFUP_DIR}/${BeefupSnapshots.Staged}`;
 }

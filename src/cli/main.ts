@@ -4,13 +4,17 @@ import { fileURLToPath } from "node:url";
 
 import { runAccept } from "../commands/accept.js";
 import { printReport, runReport } from "../commands/report.js";
+import { runRevert } from "../commands/revert.js";
+import { runRewind } from "../commands/rewind.js";
 import { runStage } from "../commands/stage.js";
 import {
   CliCommands,
+  ReportComparisons,
   StageStrategies,
   type ReportFormat,
 } from "../config/types.js";
 import { BeefupError } from "../errors.js";
+import { BEEFUP_DIR, BeefupSnapshots } from "../project/paths.js";
 import type { StageReport } from "../report/types.js";
 import { parseCliArgs, showHelp } from "./args.js";
 
@@ -32,14 +36,18 @@ async function readVersion(): Promise<string> {
 function emitReport(report: StageReport, format: ReportFormat): void {
   process.stdout.write(printReport(report, format));
   if (report.security.introduced.length > 0) {
+    const review =
+      report.comparison === ReportComparisons.Applied
+        ? `${BEEFUP_DIR}/${BeefupSnapshots.Prior} vs the live tree`
+        : `${BEEFUP_DIR}/${BeefupSnapshots.Staged} before accept`;
     console.error(
-      `warning: ${report.security.introduced.length} CVE(s) introduced; review .beefup/staged before accept`
+      `warning: ${report.security.introduced.length} CVE(s) introduced; review ${review}`
     );
   }
 }
 
 /**
- * CLI entrypoint: parses argv, runs stage, report, or accept, and returns a process exit code.
+ * CLI entrypoint: parses argv, runs a Beefup command, and returns a process exit code.
  */
 export async function main(argv = process.argv): Promise<number> {
   try {
@@ -57,6 +65,7 @@ export async function main(argv = process.argv): Promise<number> {
     if (args.command === CliCommands.Stage) {
       const report = await runStage({
         projectRoot,
+        packageRoot: args.packageRoot,
         mode: args.mode,
         strategy: args.strategy ?? StageStrategies.Worktree,
         format: args.format,
@@ -67,6 +76,7 @@ export async function main(argv = process.argv): Promise<number> {
     if (args.command === CliCommands.Report) {
       const report = await runReport({
         projectRoot,
+        packageRoot: args.packageRoot,
         mode: args.mode,
         strategy: args.strategy,
         format: args.format,
@@ -75,13 +85,42 @@ export async function main(argv = process.argv): Promise<number> {
       return 0;
     }
     if (args.command === CliCommands.Accept) {
-      const result = await runAccept({ projectRoot });
+      const result = await runAccept({
+        projectRoot,
+        packageRoot: args.packageRoot,
+      });
       process.stdout.write(
         `Accepted staged upgrade. Applied ${result.copied.join(", ")} and installed from the frozen lockfile (${result.packageManager}).\n`
       );
       for (const warning of result.warnings) {
         console.error(`warning: ${warning}`);
       }
+      return 0;
+    }
+    if (args.command === CliCommands.Revert) {
+      const result = await runRevert({
+        projectRoot,
+        packageRoot: args.packageRoot,
+      });
+      process.stdout.write(
+        `Reverted to ${BEEFUP_DIR}/${BeefupSnapshots.Prior}. Applied ${result.copied.join(", ")} and installed from the frozen lockfile (${result.packageManager}).\n`
+      );
+      return 0;
+    }
+    if (args.command === CliCommands.Rewind) {
+      const gitRef = args.gitRef;
+      if (!gitRef) {
+        throw new BeefupError(
+          `missing git ref; usage: beefup ${CliCommands.Rewind} <git-ref>`
+        );
+      }
+      const report = await runRewind({
+        projectRoot,
+        packageRoot: args.packageRoot,
+        gitRef,
+        format: args.format,
+      });
+      emitReport(report, args.format);
       return 0;
     }
 

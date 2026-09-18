@@ -50,10 +50,38 @@ export const CliCommands = {
   Stage: "stage",
   Report: "report",
   Accept: "accept",
+  Revert: "revert",
+  Rewind: "rewind",
 } as const;
 
-/** CLI command name (`stage`, `report`, or `accept`). */
+/** CLI option flags Beefup parses from argv. */
+export const CliOptionFlags = {
+  Help: "--help",
+  HelpShort: "-h",
+  Version: "--version",
+  VersionShort: "-v",
+  Mode: "--mode",
+  Strategy: "--strategy",
+  Dir: "--dir",
+  Format: "--format",
+  PackageRoot: "--package-root",
+} as const;
+
+/** Default package-root path: manifests live at the project root. */
+export const DefaultPackageRoot = "." as const;
+
+/** CLI command name (`stage`, `report`, `accept`, `revert`, or `rewind`). */
 export type CliCommand = (typeof CliCommands)[keyof typeof CliCommands];
+
+/** Closed set of report comparison contexts (proposal vs applied). */
+export const ReportComparisons = {
+  Proposal: "proposal",
+  Applied: "applied",
+} as const;
+
+/** Whether the report compares live-vs-staged or prior-vs-live. */
+export type ReportComparison =
+  (typeof ReportComparisons)[keyof typeof ReportComparisons];
 
 /**
  * Returns true when `value` is a known upgrade mode.
@@ -89,6 +117,15 @@ export function isReportFormat(value: unknown): value is ReportFormat {
 export function isAlignmentAction(value: unknown): value is AlignmentAction {
   return (
     value === AlignmentActions.Error || value === AlignmentActions.Warn
+  );
+}
+
+/**
+ * Returns true when `value` is a known report comparison context.
+ */
+export function isReportComparison(value: unknown): value is ReportComparison {
+  return (
+    value === ReportComparisons.Proposal || value === ReportComparisons.Applied
   );
 }
 
