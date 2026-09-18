@@ -137,6 +137,31 @@ describe("runAccept", () => {
     });
   });
 
+  it("writes prior from live when lockfiles already match and prior is missing", async () => {
+    await withSafeChainStubs(async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-accept-matched-"));
+      await seedStagedProject(dir);
+      await writeJsonFile(path.join(dir, "package.json"), {
+        name: "demo",
+        version: "1.0.0",
+        dependencies: { leftpad: "1.3.0" },
+      });
+      await writeFile(
+        path.join(dir, "pnpm-lock.yaml"),
+        await readFile(path.join(stagedDir(dir), "pnpm-lock.yaml"), "utf8")
+      );
+      try {
+        await runAccept({ projectRoot: dir, runner });
+        const prior = await readJsonFile<PackageJson>(
+          path.join(priorDir(dir), "package.json")
+        );
+        assert.equal(prior.dependencies?.leftpad, "1.3.0");
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+  });
+
   it("copies workspace package.json files from staged", async () => {
     await withSafeChainStubs(async () => {
       const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-accept-ws-"));

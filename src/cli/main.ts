@@ -108,16 +108,10 @@ export async function main(argv = process.argv): Promise<number> {
       return 0;
     }
     if (args.command === CliCommands.Rewind) {
-      const gitRef = args.gitRef;
-      if (!gitRef) {
-        throw new BeefupError(
-          `missing git ref; usage: beefup ${CliCommands.Rewind} <git-ref>`
-        );
-      }
       const report = await runRewind({
         projectRoot,
         packageRoot: args.packageRoot,
-        gitRef,
+        gitRef: args.gitRef ?? "",
         format: args.format,
       });
       emitReport(report, args.format);

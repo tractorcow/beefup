@@ -370,6 +370,32 @@ packages:
     });
   });
 
+  it("treats a matching staged lockfile as a proposal when there is no prior", async () => {
+    await withSafeChainStubs(async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-report-noop-"));
+      await seedStagedProject(dir);
+      await writeJsonFile(path.join(dir, "package.json"), {
+        name: "demo",
+        version: "1.0.0",
+        dependencies: { leftpad: "1.3.0" },
+      });
+      await writeFile(
+        path.join(dir, "pnpm-lock.yaml"),
+        await readFile(path.join(stagedDir(dir), "pnpm-lock.yaml"), "utf8")
+      );
+      try {
+        const report = await runReport({
+          projectRoot: dir,
+          format: ReportFormats.Text,
+          runner,
+        });
+        assert.equal(report.comparison, ReportComparisons.Proposal);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+  });
+
   it("fails when no staged lockfile exists", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-report-missing-"));
     await writeJsonFile(path.join(dir, "package.json"), {

@@ -1,7 +1,12 @@
 import path from "node:path";
 
 import { loadConfig } from "../config/load.js";
-import type { ReportFormat, StageStrategyName, UpgradeMode } from "../config/types.js";
+import {
+  ReportComparisons,
+  type ReportFormat,
+  type StageStrategyName,
+  type UpgradeMode,
+} from "../config/types.js";
 import { defaultProcessRunner, type ProcessRunner } from "../pm/runner.js";
 import { assertNpmVersion, resolveProtectedPm } from "../pm/safe-chain.js";
 import { regenerateLockfile } from "../pm/update.js";
@@ -90,6 +95,7 @@ export async function runStage(options: StageOptions): Promise<StageReport> {
     strategy: options.strategy,
     format: options.format,
     runner,
+    comparison: ReportComparisons.Proposal,
   });
 }
 

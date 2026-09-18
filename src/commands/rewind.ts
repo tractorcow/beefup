@@ -16,7 +16,6 @@ import {
   resolveCommandPackageRoot,
 } from "../project/package-root.js";
 import { beefupDir, BeefupSnapshots, priorDir } from "../project/paths.js";
-import { listWritableRelativePaths } from "../project/workspace.js";
 import type { StageReport } from "../report/types.js";
 import { gitShowFile, isGitRepo, listGitTreePaths, resolveGitRef } from "../strategy/git.js";
 import { runReport } from "./report.js";
@@ -117,25 +116,6 @@ export async function runRewind(options: RewindOptions): Promise<StageReport> {
         resolved,
         rel.replaceAll("\\", "/"),
         destRel,
-        projectRoot,
-        extractRoot,
-        false
-      );
-    }
-
-    const rels = await listWritableRelativePaths(
-      extractRoot,
-      project.lockfileName
-    );
-    for (const rel of rels) {
-      const dest = path.join(extractRoot, rel);
-      if (await pathExists(dest)) {
-        continue;
-      }
-      await extractHistoricFile(
-        resolved,
-        gitPathFromPackageRelative(packageRoot.relative, rel),
-        rel,
         projectRoot,
         extractRoot,
         false

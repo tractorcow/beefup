@@ -56,6 +56,8 @@ interface ReportTrees {
 
 /**
  * Chooses live-vs-staged (proposal) or prior-vs-live (applied) comparison trees.
+ * A staged lockfile that matches live still counts as a proposal when there is
+ * no prior (no-op stage); matching staged plus prior is an applied upgrade.
  */
 async function resolveReportTrees(
   projectRoot: string,
@@ -88,7 +90,7 @@ async function resolveReportTrees(
     return { comparison: ReportComparisons.Applied, beforeRoot: prior, afterRoot: liveRoot };
   }
 
-  if (stagedExists && !(await filesByteEqual(liveLock, stagedLock))) {
+  if (stagedExists && (!(await filesByteEqual(liveLock, stagedLock)) || !priorExists)) {
     return { comparison: ReportComparisons.Proposal, beforeRoot: liveRoot, afterRoot: staged };
   }
   if (priorExists) {
