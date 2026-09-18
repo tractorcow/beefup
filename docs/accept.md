@@ -26,8 +26,9 @@ beefup accept --package-root ./app
 | --- | --- | --- |
 | `--dir` | path | current working directory |
 | `--package-root` | path | project root, or the value stored in the last report |
+| `--format` | `html`, `markdown`, `text` | `html` (file under `.beefup/report`) |
 
-`--mode`, `--strategy`, and `--format` are stage/report options and are ignored. `--package-root` is used (or taken from the last report).
+`--mode` and `--strategy` are ignored. `--package-root` is used (or taken from the last report). `--format` applies to the report written after accept.
 
 ## Failures
 
@@ -35,6 +36,6 @@ Accept **fails** when there is no staged lockfile, an in-place stage is in progr
 
 If the install fails after files were copied, the live manifests and lockfile stay at the accepted versions and `.beefup/staged` is already gone. Fix the installer error, or run `beefup revert` to restore `.beefup/prior`. A second `beefup accept` will not work until you `stage` again.
 
-Introduced CVEs do **not** fail accept. Review the report from `beefup stage` / `beefup report` before running this command.
+Introduced CVEs do **not** fail accept. Review the report from `beefup stage` / `beefup report` before running this command. See [report](report.md).
 
 To undo an accept, run `beefup revert`. See [revert](revert.md) and [rewind](rewind.md).

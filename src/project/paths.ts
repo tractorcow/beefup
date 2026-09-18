@@ -40,8 +40,17 @@ export function reportDir(projectRoot: string): string {
 /** File names written under `.beefup/report`. */
 export const ReportFileNames = {
   Html: "REPORT.html",
+  Markdown: "REPORT.md",
+  Text: "REPORT.txt",
   Json: "report.json",
 } as const;
+
+/** Human-readable report files that `--format` may replace (not `report.json`). */
+export const HumanReportFileNames = [
+  ReportFileNames.Html,
+  ReportFileNames.Markdown,
+  ReportFileNames.Text,
+] as const;
 
 /**
  * Returns the absolute path to the git worktree working directory.

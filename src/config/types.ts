@@ -17,16 +17,14 @@ export const StageStrategies = {
 export type StageStrategyName =
   (typeof StageStrategies)[keyof typeof StageStrategies];
 
-/** Closed set of report formats written to stdout. */
+/** Closed set of human-readable report files written under `.beefup/report`. */
 export const ReportFormats = {
-  Color: "color",
-  Text: "text",
-  Markdown: "markdown",
-  Json: "json",
   Html: "html",
+  Markdown: "markdown",
+  Text: "text",
 } as const;
 
-/** Format used when printing a stage/report result to stdout. */
+/** On-disk human-readable report format (`html`, `markdown`, or `text`). */
 export type ReportFormat = (typeof ReportFormats)[keyof typeof ReportFormats];
 
 /** Closed set of policy actions for alignment and similar findings. */

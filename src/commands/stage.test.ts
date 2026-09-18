@@ -181,7 +181,7 @@ describe("runStage", () => {
         await runStage({
           projectRoot: dir,
           strategy: StageStrategies.Inplace,
-          format: ReportFormats.Json,
+          format: ReportFormats.Html,
           runner,
         });
         const live = await readJsonFile<PackageJson>(path.join(dir, "package.json"));

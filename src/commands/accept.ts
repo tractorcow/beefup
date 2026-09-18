@@ -1,7 +1,7 @@
 import path from "node:path";
 
 import { loadConfig } from "../config/load.js";
-import { CliCommands, ReportFormats } from "../config/types.js";
+import { CliCommands, ReportFormats, type ReportFormat } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { pathExists } from "../fsutil.js";
 import { installFromLockfile } from "../pm/install.js";
@@ -23,6 +23,7 @@ import { runReport } from "./report.js";
 export interface AcceptOptions {
   projectRoot: string;
   packageRoot?: string;
+  format?: ReportFormat;
   runner?: ProcessRunner;
 }
 
@@ -89,7 +90,7 @@ export async function runAccept(options: AcceptOptions): Promise<AcceptResult> {
   await runReport({
     projectRoot,
     packageRoot: packageRoot.relative,
-    format: ReportFormats.Color,
+    format: options.format ?? ReportFormats.Html,
     runner,
   });
 

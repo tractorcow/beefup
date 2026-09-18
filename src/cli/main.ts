@@ -11,7 +11,6 @@ import {
   CliCommands,
   ReportComparisons,
   StageStrategies,
-  type ReportFormat,
 } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { BEEFUP_DIR, BeefupSnapshots } from "../project/paths.js";
@@ -33,8 +32,8 @@ async function readVersion(): Promise<string> {
 /**
  * Writes a stage/report result to stdout and warns if new CVEs were introduced.
  */
-function emitReport(report: StageReport, format: ReportFormat): void {
-  process.stdout.write(printReport(report, format));
+function emitReport(report: StageReport): void {
+  process.stdout.write(printReport(report));
   if (report.security.introduced.length > 0) {
     const review =
       report.comparison === ReportComparisons.Applied
@@ -70,7 +69,7 @@ export async function main(argv = process.argv): Promise<number> {
         strategy: args.strategy ?? StageStrategies.Worktree,
         format: args.format,
       });
-      emitReport(report, args.format);
+      emitReport(report);
       return 0;
     }
     if (args.command === CliCommands.Report) {
@@ -81,13 +80,14 @@ export async function main(argv = process.argv): Promise<number> {
         strategy: args.strategy,
         format: args.format,
       });
-      emitReport(report, args.format);
+      emitReport(report);
       return 0;
     }
     if (args.command === CliCommands.Accept) {
       const result = await runAccept({
         projectRoot,
         packageRoot: args.packageRoot,
+        format: args.format,
       });
       process.stdout.write(
         `Accepted staged upgrade. Applied ${result.copied.join(", ")} and installed from the frozen lockfile (${result.packageManager}).\n`
@@ -101,6 +101,7 @@ export async function main(argv = process.argv): Promise<number> {
       const result = await runRevert({
         projectRoot,
         packageRoot: args.packageRoot,
+        format: args.format,
       });
       process.stdout.write(
         `Reverted to ${BEEFUP_DIR}/${BeefupSnapshots.Prior}. Applied ${result.copied.join(", ")} and installed from the frozen lockfile (${result.packageManager}).\n`
@@ -114,7 +115,7 @@ export async function main(argv = process.argv): Promise<number> {
         gitRef: args.gitRef ?? "",
         format: args.format,
       });
-      emitReport(report, args.format);
+      emitReport(report);
       return 0;
     }
 

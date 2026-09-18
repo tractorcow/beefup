@@ -12,6 +12,7 @@ import {
   type UpgradeMode,
 } from "../config/types.js";
 import { BeefupError } from "../errors.js";
+import { BEEFUP_DIR, ReportFileNames } from "../project/paths.js";
 
 export interface CliArgs {
   command?: string;
@@ -30,7 +31,7 @@ export interface CliArgs {
  */
 export function parseCliArgs(argv: string[]): CliArgs {
   const args: CliArgs = {
-    format: ReportFormats.Color,
+    format: ReportFormats.Html,
     help: false,
     version: false,
   };
@@ -122,7 +123,7 @@ OPTIONS:
     ${CliOptionFlags.Strategy} ${StageStrategies.Worktree}|${StageStrategies.Inplace}  Isolation strategy for ${CliCommands.Stage} (default: ${StageStrategies.Worktree})
     ${CliOptionFlags.Dir} <path>                 Project directory (default: cwd)
     ${CliOptionFlags.PackageRoot} <path>       Directory with package.json and lockfile (default: project root)
-    ${CliOptionFlags.Format} ${Object.values(ReportFormats).join("|")}  Report format printed to stdout (default: ${ReportFormats.Color})
+    ${CliOptionFlags.Format} ${Object.values(ReportFormats).join("|")}  Human-readable file under ${BEEFUP_DIR}/report (default: ${ReportFormats.Html}; ${ReportFileNames.Json} is always written)
     -h, --help                   Show this help
     -v, --version                Show version
 
@@ -132,7 +133,7 @@ EXAMPLES:
     beefup ${CliCommands.Stage} ${CliOptionFlags.Format} ${ReportFormats.Html}
     beefup ${CliCommands.Stage} ${CliOptionFlags.PackageRoot} ./app
     beefup ${CliCommands.Report}
-    beefup ${CliCommands.Report} ${CliOptionFlags.Format} ${ReportFormats.Json}
+    beefup ${CliCommands.Report} ${CliOptionFlags.Format} ${ReportFormats.Markdown}
     beefup ${CliCommands.Accept}
     beefup ${CliCommands.Revert}
     beefup ${CliCommands.Rewind} HEAD~1

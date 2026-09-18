@@ -14,7 +14,7 @@ import {
 } from "../config/types.js";
 import { PackageChangeTypes } from "../diff/types.js";
 import { BeefupError } from "../errors.js";
-import { removePath, writeJsonFile } from "../fsutil.js";
+import { pathExists, removePath, writeJsonFile } from "../fsutil.js";
 import type { ProcessRunner } from "../pm/runner.js";
 import { BEEFUP_DIR, priorDir, ReportFileNames, stagedDir } from "../project/paths.js";
 import { PackageManagers } from "../project/types.js";
@@ -104,7 +104,7 @@ describe("runReport", () => {
       try {
         const report = await runReport({
           projectRoot: dir,
-          format: ReportFormats.Text,
+          format: ReportFormats.Html,
           runner,
         });
         assert.equal(report.strategy, StageStrategies.Inplace);
@@ -156,6 +156,31 @@ describe("runReport", () => {
         assert.equal(json.strategy, StageStrategies.Inplace);
         assert.ok(json.generatedAt);
         assert.ok(json.beefupVersion);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  it("writes REPORT.md and removes REPORT.html when format is markdown", async () => {
+    await withSafeChainStubs(async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-report-md-"));
+      await seedStagedProject(dir);
+      const reports = path.join(dir, BEEFUP_DIR, "report");
+      await writeFile(path.join(reports, ReportFileNames.Html), "<html></html>", "utf8");
+      try {
+        await runReport({
+          projectRoot: dir,
+          format: ReportFormats.Markdown,
+          runner,
+        });
+        const markdown = await readFile(
+          path.join(reports, ReportFileNames.Markdown),
+          "utf8"
+        );
+        assert.match(markdown, /## Summary/);
+        assert.equal(await pathExists(path.join(reports, ReportFileNames.Html)), false);
+        assert.equal(await pathExists(path.join(reports, ReportFileNames.Json)), true);
       } finally {
         await rm(dir, { recursive: true, force: true });
       }
@@ -344,7 +369,7 @@ packages:
       try {
         const report = await runReport({
           projectRoot: dir,
-          format: ReportFormats.Text,
+          format: ReportFormats.Html,
           runner,
         });
         assert.equal(report.comparison, ReportComparisons.Applied);

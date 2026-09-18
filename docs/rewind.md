@@ -20,7 +20,7 @@ beefup rewind --package-root ./app HEAD~1
 
 Rewind only needs a read-only copy of historic manifests. It does not require a clean working tree.
 
-`--dir`, `--package-root`, and `--format` apply. `--format` controls stdout; HTML and JSON are always written under `.beefup/report`.
+`--dir`, `--package-root`, and `--format` apply. `--format` selects the human-readable file under `.beefup/report`; `report.json` is always written. Stdout is automatic colour or plain text. See [report](report.md).
 
 ## Failures
 
