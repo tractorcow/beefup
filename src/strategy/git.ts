@@ -1,9 +1,42 @@
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
 
+import { BeefupError } from "../errors.js";
 import { BEEFUP_DIR } from "../project/paths.js";
 
 const execFile = promisify(execFileCallback);
+
+/** Git subcommands Beefup invokes. */
+export const GitSubcommands = {
+  LsTree: "ls-tree",
+  RevParse: "rev-parse",
+  Show: "show",
+  Status: "status",
+  Worktree: "worktree",
+} as const;
+
+/** Git flags used with rev-parse, status, ls-tree, and worktree. */
+export const GitFlags = {
+  Verify: "--verify",
+  IsInsideWorkTree: "--is-inside-work-tree",
+  Porcelain: "--porcelain",
+  Recurse: "-r",
+  NameOnly: "--name-only",
+  Detach: "--detach",
+  Force: "--force",
+} as const;
+
+/** Git worktree subcommand actions. */
+export const GitWorktreeActions = {
+  Add: "add",
+  Remove: "remove",
+  Prune: "prune",
+} as const;
+
+/** Git revisions Beefup checks out for staging. */
+export const GitRefs = {
+  Head: "HEAD",
+} as const;
 
 /** Git porcelain v1 separator between rename/copy source and destination. */
 const PorcelainRenameSeparator = " -> ";
@@ -27,11 +60,64 @@ export async function runGit(
  */
 export async function isGitRepo(cwd: string): Promise<boolean> {
   try {
-    await runGit(["rev-parse", "--is-inside-work-tree"], cwd);
+    await runGit(
+      [GitSubcommands.RevParse, GitFlags.IsInsideWorkTree],
+      cwd
+    );
     return true;
   } catch {
     return false;
   }
+}
+
+/**
+ * Resolves `ref` to a commit id, or throws when the revision does not exist.
+ */
+export async function resolveGitRef(ref: string, cwd: string): Promise<string> {
+  try {
+    const { stdout } = await runGit(
+      [GitSubcommands.RevParse, GitFlags.Verify, `${ref}^{commit}`],
+      cwd
+    );
+    return stdout;
+  } catch {
+    throw new BeefupError(`invalid git ref: ${ref}`);
+  }
+}
+
+/**
+ * Returns the contents of `ref:path` via `git show`, or undefined when missing.
+ * Does not trim, so lockfile/manifest bytes stay intact.
+ */
+export async function gitShowFile(
+  ref: string,
+  relPath: string,
+  cwd: string
+): Promise<string | undefined> {
+  const spec = `${ref}:${relPath.replaceAll("\\", "/")}`;
+  try {
+    const { stdout } = await execFile("git", [GitSubcommands.Show, spec], {
+      cwd,
+      encoding: "utf8",
+    });
+    return stdout;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Lists every path in the tree at `ref` (`git ls-tree -r --name-only`).
+ */
+export async function listGitTreePaths(ref: string, cwd: string): Promise<string[]> {
+  const { stdout } = await runGit(
+    [GitSubcommands.LsTree, GitFlags.Recurse, GitFlags.NameOnly, ref],
+    cwd
+  );
+  if (stdout.length === 0) {
+    return [];
+  }
+  return stdout.split("\n");
 }
 
 /**

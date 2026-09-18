@@ -1,23 +1,22 @@
-import { mkdir, rename } from "node:fs/promises";
+import { mkdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { CliCommands } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { copyFileTo, pathExists, removePath } from "../fsutil.js";
-import { beefupDir, stagedDir } from "./paths.js";
+import { priorDir, stagedDir } from "./paths.js";
 import { listWritableRelativePaths } from "./workspace.js";
 
 /**
- * Copies writable project files from a staging source into `.beefup/staged`.
- * Uses a temporary directory and renames atomically into place.
+ * Copies writable project files from `sourceRoot` into `dest` atomically.
+ * Uses a sibling `.tmp` directory and renames into place.
  */
-export async function collectStagedOutputs(
+export async function snapshotWritableFiles(
   sourceRoot: string,
-  projectRoot: string,
+  dest: string,
   lockfileName: string
 ): Promise<string> {
-  const dest = stagedDir(projectRoot);
-  const tmp = path.join(beefupDir(projectRoot), "staged.tmp");
+  const tmp = `${dest}.tmp`;
   await removePath(tmp);
   await mkdir(tmp, { recursive: true });
 
@@ -37,6 +36,54 @@ export async function collectStagedOutputs(
 }
 
 /**
+ * Copies writable project files from a staging source into `.beefup/staged`.
+ */
+export async function collectStagedOutputs(
+  sourceRoot: string,
+  projectRoot: string,
+  lockfileName: string
+): Promise<string> {
+  return snapshotWritableFiles(
+    sourceRoot,
+    stagedDir(projectRoot),
+    lockfileName
+  );
+}
+
+/**
+ * Copies writable project files from a live tree into `.beefup/prior`.
+ */
+export async function collectPriorOutputs(
+  sourceRoot: string,
+  projectRoot: string,
+  lockfileName: string
+): Promise<string> {
+  return snapshotWritableFiles(
+    sourceRoot,
+    priorDir(projectRoot),
+    lockfileName
+  );
+}
+
+/**
+ * Ensures a snapshot directory contains a lockfile. Returns the snapshot root.
+ */
+export async function requireSnapshotLockfile(
+  projectRoot: string,
+  snapshotRoot: string,
+  lockfileName: string,
+  hint: string
+): Promise<string> {
+  const lockPath = path.join(snapshotRoot, lockfileName);
+  if (!(await pathExists(lockPath))) {
+    throw new BeefupError(
+      `no lockfile at ${path.relative(projectRoot, lockPath) || lockPath}; ${hint}`
+    );
+  }
+  return snapshotRoot;
+}
+
+/**
  * Ensures `.beefup/staged` contains a proposal lockfile for the project.
  * Returns the staged directory path.
  */
@@ -44,34 +91,103 @@ export async function requireStagedUpgrade(
   projectRoot: string,
   lockfileName: string
 ): Promise<string> {
-  const staged = stagedDir(projectRoot);
-  const stagedLock = path.join(staged, lockfileName);
-  if (!(await pathExists(stagedLock))) {
-    throw new BeefupError(
-      `no staged lockfile at ${path.relative(projectRoot, stagedLock) || stagedLock}; run beefup ${CliCommands.Stage} first`
-    );
-  }
-  return staged;
+  return requireSnapshotLockfile(
+    projectRoot,
+    stagedDir(projectRoot),
+    lockfileName,
+    `run beefup ${CliCommands.Stage} first`
+  );
 }
 
 /**
- * Copies staged proposal files from `.beefup/staged` into the live project tree.
- * Returns the relative paths that were written.
+ * Ensures `.beefup/prior` contains a baseline lockfile for the project.
+ * Returns the prior directory path.
  */
-export async function applyStagedOutputs(
+export async function requirePriorUpgrade(
   projectRoot: string,
   lockfileName: string
+): Promise<string> {
+  return requireSnapshotLockfile(
+    projectRoot,
+    priorDir(projectRoot),
+    lockfileName,
+    `run beefup ${CliCommands.Accept} or beefup ${CliCommands.Rewind} first`
+  );
+}
+
+/**
+ * Copies writable snapshot files from `snapshotRoot` into the live package tree.
+ * Returns the relative paths that were written.
+ */
+export async function applySnapshotToLive(
+  snapshotRoot: string,
+  liveRoot: string,
+  lockfileName: string
 ): Promise<string[]> {
-  const staged = stagedDir(projectRoot);
-  const rels = await listWritableRelativePaths(staged, lockfileName);
+  const rels = await listWritableRelativePaths(snapshotRoot, lockfileName);
   const copied: string[] = [];
   for (const rel of rels) {
-    const from = path.join(staged, rel);
+    const from = path.join(snapshotRoot, rel);
     if (!(await pathExists(from))) {
       continue;
     }
-    await copyFileTo(from, path.join(projectRoot, rel));
+    await copyFileTo(from, path.join(liveRoot, rel));
     copied.push(rel);
   }
   return copied;
+}
+
+/**
+ * Copies staged proposal files from `.beefup/staged` into the live package tree.
+ */
+export async function applyStagedOutputs(
+  projectRoot: string,
+  liveRoot: string,
+  lockfileName: string
+): Promise<string[]> {
+  return applySnapshotToLive(
+    stagedDir(projectRoot),
+    liveRoot,
+    lockfileName
+  );
+}
+
+/**
+ * Copies prior snapshot files from `.beefup/prior` into the live package tree.
+ */
+export async function applyPriorOutputs(
+  projectRoot: string,
+  liveRoot: string,
+  lockfileName: string
+): Promise<string[]> {
+  return applySnapshotToLive(
+    priorDir(projectRoot),
+    liveRoot,
+    lockfileName
+  );
+}
+
+/**
+ * Removes `.beefup/staged` if it exists.
+ */
+export async function removeStagedOutputs(projectRoot: string): Promise<void> {
+  await removePath(stagedDir(projectRoot));
+}
+
+/**
+ * Removes `.beefup/prior` if it exists.
+ */
+export async function removePriorOutputs(projectRoot: string): Promise<void> {
+  await removePath(priorDir(projectRoot));
+}
+
+/**
+ * Writes UTF-8 contents to a path, creating parent directories as needed.
+ */
+export async function writeTextFile(
+  dest: string,
+  contents: string
+): Promise<void> {
+  await mkdir(path.dirname(dest), { recursive: true });
+  await writeFile(dest, contents, "utf8");
 }

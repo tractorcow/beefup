@@ -3,6 +3,12 @@ import path from "node:path";
 /** Relative directory name under the project root for Beefup state. */
 export const BEEFUP_DIR = ".beefup";
 
+/** Snapshot directory names under `.beefup`. */
+export const BeefupSnapshots = {
+  Staged: "staged",
+  Prior: "prior",
+} as const;
+
 /**
  * Returns the absolute path to the project's `.beefup` directory.
  */
@@ -14,7 +20,14 @@ export function beefupDir(projectRoot: string): string {
  * Returns the absolute path to the staged proposal directory.
  */
 export function stagedDir(projectRoot: string): string {
-  return path.join(beefupDir(projectRoot), "staged");
+  return path.join(beefupDir(projectRoot), BeefupSnapshots.Staged);
+}
+
+/**
+ * Returns the absolute path to the prior-release snapshot directory.
+ */
+export function priorDir(projectRoot: string): string {
+  return path.join(beefupDir(projectRoot), BeefupSnapshots.Prior);
 }
 
 /**

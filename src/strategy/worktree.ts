@@ -1,10 +1,19 @@
 import { mkdir } from "node:fs/promises";
+import path from "node:path";
 
-import { StageStrategies } from "../config/types.js";
+import { DefaultPackageRoot, StageStrategies } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { pathExists, removePath } from "../fsutil.js";
 import { beefupDir, worktreeDir } from "../project/paths.js";
-import { hasNonBeefupWorkingTreeChanges, isGitRepo, runGit } from "./git.js";
+import {
+  GitFlags,
+  GitRefs,
+  GitSubcommands,
+  GitWorktreeActions,
+  hasNonBeefupWorkingTreeChanges,
+  isGitRepo,
+  runGit,
+} from "./git.js";
 import type { StageStrategy, StageWorkspace } from "./types.js";
 
 /**
@@ -15,9 +24,12 @@ export class WorktreeStrategy implements StageStrategy {
   private workRoot: string | undefined;
 
   /**
-   * Creates a worktree strategy for the given project root.
+   * Creates a worktree strategy for the project root and optional nested package dir.
    */
-  constructor(private readonly projectRoot: string) {}
+  constructor(
+    private readonly projectRoot: string,
+    private readonly packageRelative: string = DefaultPackageRoot
+  ) {}
 
   /**
    * Requires a git repo whose working tree is clean except for `.beefup/`,
@@ -31,7 +43,7 @@ export class WorktreeStrategy implements StageStrategy {
     }
 
     const { stdout: status } = await runGit(
-      ["status", "--porcelain"],
+      [GitSubcommands.Status, GitFlags.Porcelain],
       this.projectRoot
     );
     if (hasNonBeefupWorkingTreeChanges(status)) {
@@ -44,11 +56,21 @@ export class WorktreeStrategy implements StageStrategy {
     await this.removeLeftoverWorktree(workRoot);
     await mkdir(beefupDir(this.projectRoot), { recursive: true });
     await runGit(
-      ["worktree", "add", "--detach", workRoot, "HEAD"],
+      [
+        GitSubcommands.Worktree,
+        GitWorktreeActions.Add,
+        GitFlags.Detach,
+        workRoot,
+        GitRefs.Head,
+      ],
       this.projectRoot
     );
     this.workRoot = workRoot;
-    return { root: workRoot };
+    const packageRoot =
+      this.packageRelative === DefaultPackageRoot
+        ? workRoot
+        : path.join(workRoot, this.packageRelative);
+    return { root: packageRoot };
   }
 
   /**
@@ -75,13 +97,21 @@ export class WorktreeStrategy implements StageStrategy {
     }
     try {
       await runGit(
-        ["worktree", "remove", "--force", workRoot],
+        [
+          GitSubcommands.Worktree,
+          GitWorktreeActions.Remove,
+          GitFlags.Force,
+          workRoot,
+        ],
         this.projectRoot
       );
     } catch {
       await removePath(workRoot);
       try {
-        await runGit(["worktree", "prune"], this.projectRoot);
+        await runGit(
+          [GitSubcommands.Worktree, GitWorktreeActions.Prune],
+          this.projectRoot
+        );
       } catch {
         // Ignore prune failures after a forced directory removal.
       }

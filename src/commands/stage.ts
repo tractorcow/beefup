@@ -1,12 +1,18 @@
 import path from "node:path";
 
 import { loadConfig } from "../config/load.js";
-import type { ReportFormat, StageStrategyName, UpgradeMode } from "../config/types.js";
+import {
+  ReportComparisons,
+  type ReportFormat,
+  type StageStrategyName,
+  type UpgradeMode,
+} from "../config/types.js";
 import { defaultProcessRunner, type ProcessRunner } from "../pm/runner.js";
 import { assertNpmVersion, resolveProtectedPm } from "../pm/safe-chain.js";
 import { regenerateLockfile } from "../pm/update.js";
-import { collectStagedOutputs } from "../project/collect.js";
+import { collectStagedOutputs, removePriorOutputs } from "../project/collect.js";
 import { detectProject } from "../project/detect.js";
+import { resolveCommandPackageRoot } from "../project/package-root.js";
 import { PackageManagers } from "../project/types.js";
 import type { StageReport } from "../report/types.js";
 import { lockfilePathFor, repinWorkspace, rewriteWorkspace } from "../rewrite/workspace.js";
@@ -15,6 +21,8 @@ import { runReport } from "./report.js";
 
 export interface StageOptions {
   projectRoot: string;
+  /** Directory with package.json and the lockfile, relative to the project root. */
+  packageRoot?: string;
   mode?: UpgradeMode;
   strategy: StageStrategyName;
   format: ReportFormat;
@@ -27,9 +35,13 @@ export interface StageOptions {
  */
 export async function runStage(options: StageOptions): Promise<StageReport> {
   const projectRoot = path.resolve(options.projectRoot);
+  const packageRoot = await resolveCommandPackageRoot(
+    projectRoot,
+    options.packageRoot
+  );
   const runner = options.runner ?? defaultProcessRunner;
-  const project = await detectProject(projectRoot);
-  const config = await loadConfig(projectRoot, options.mode);
+  const project = await detectProject(packageRoot.absolute);
+  const config = await loadConfig(packageRoot.absolute, options.mode);
   const protectedPm = await resolveProtectedPm(project.packageManager);
   if (project.packageManager === PackageManagers.Npm) {
     await assertNpmVersion(protectedPm);
@@ -38,7 +50,8 @@ export async function runStage(options: StageOptions): Promise<StageReport> {
   const strategy = createStageStrategy(
     options.strategy,
     projectRoot,
-    project.lockfileName
+    project.lockfileName,
+    packageRoot.absolute
   );
 
   /**
@@ -69,6 +82,7 @@ export async function runStage(options: StageOptions): Promise<StageReport> {
       projectRoot,
       project.lockfileName
     );
+    await removePriorOutputs(projectRoot);
   } finally {
     process.off("SIGINT", onSignal);
     process.off("SIGTERM", onSignal);
@@ -77,10 +91,12 @@ export async function runStage(options: StageOptions): Promise<StageReport> {
 
   return runReport({
     projectRoot,
+    packageRoot: packageRoot.relative,
     mode: config.mode,
     strategy: options.strategy,
     format: options.format,
     runner,
+    comparison: ReportComparisons.Proposal,
   });
 }
 

@@ -1,18 +1,15 @@
 import path from "node:path";
 
-import { loadConfig } from "../config/load.js";
 import { CliCommands, ReportFormats } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { pathExists } from "../fsutil.js";
 import { installFromLockfile } from "../pm/install.js";
 import { defaultProcessRunner, type ProcessRunner } from "../pm/runner.js";
 import { assertNpmVersion, resolveProtectedPm } from "../pm/safe-chain.js";
-import { assertPolicy, evaluatePolicy } from "../policy/evaluate.js";
 import {
-  applyStagedOutputs,
-  collectPriorOutputs,
+  applyPriorOutputs,
   removeStagedOutputs,
-  requireStagedUpgrade,
+  requirePriorUpgrade,
 } from "../project/collect.js";
 import { detectProject } from "../project/detect.js";
 import { resolveCommandPackageRoot } from "../project/package-root.js";
@@ -20,24 +17,22 @@ import { inProgressPath } from "../project/paths.js";
 import { PackageManagers, type PackageManager } from "../project/types.js";
 import { runReport } from "./report.js";
 
-export interface AcceptOptions {
+export interface RevertOptions {
   projectRoot: string;
   packageRoot?: string;
   runner?: ProcessRunner;
 }
 
-export interface AcceptResult {
+export interface RevertResult {
   packageManager: PackageManager;
   copied: string[];
-  warnings: string[];
 }
 
 /**
- * Moves live manifests to `.beefup/prior`, copies staged onto the live tree,
- * removes `.beefup/staged`, installs from the frozen lockfile, then regenerates
- * the applied report.
+ * Restores `.beefup/prior` onto the live tree, removes `.beefup/staged`, and
+ * installs from the frozen lockfile. Leaves prior in place as the baseline.
  */
-export async function runAccept(options: AcceptOptions): Promise<AcceptResult> {
+export async function runRevert(options: RevertOptions): Promise<RevertResult> {
   const projectRoot = path.resolve(options.projectRoot);
   const packageRoot = await resolveCommandPackageRoot(
     projectRoot,
@@ -45,12 +40,12 @@ export async function runAccept(options: AcceptOptions): Promise<AcceptResult> {
   );
   const runner = options.runner ?? defaultProcessRunner;
   const project = await detectProject(packageRoot.absolute);
-  const staged = await requireStagedUpgrade(projectRoot, project.lockfileName);
+  await requirePriorUpgrade(projectRoot, project.lockfileName);
 
   const inProgress = inProgressPath(projectRoot);
   if (await pathExists(inProgress)) {
     throw new BeefupError(
-      `cannot accept while an in-place ${CliCommands.Stage} is in progress (${path.relative(projectRoot, inProgress) || inProgress}); run beefup ${CliCommands.Stage} to restore the live tree first`
+      `cannot revert while an in-place ${CliCommands.Stage} is in progress (${path.relative(projectRoot, inProgress) || inProgress}); run beefup ${CliCommands.Stage} to restore the live tree first`
     );
   }
 
@@ -59,21 +54,7 @@ export async function runAccept(options: AcceptOptions): Promise<AcceptResult> {
     await assertNpmVersion(protectedPm);
   }
 
-  const config = await loadConfig(packageRoot.absolute);
-  const policy = await evaluatePolicy(
-    staged,
-    project.packageManager,
-    project.lockfileName,
-    config
-  );
-  assertPolicy(policy);
-
-  await collectPriorOutputs(
-    packageRoot.absolute,
-    projectRoot,
-    project.lockfileName
-  );
-  const copied = await applyStagedOutputs(
+  const copied = await applyPriorOutputs(
     projectRoot,
     packageRoot.absolute,
     project.lockfileName
@@ -96,6 +77,5 @@ export async function runAccept(options: AcceptOptions): Promise<AcceptResult> {
   return {
     packageManager: project.packageManager,
     copied,
-    warnings: policy.warnings,
   };
 }

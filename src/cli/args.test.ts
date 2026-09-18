@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   CliCommands,
+  CliOptionFlags,
   ReportFormats,
   StageStrategies,
   UpgradeModes,
@@ -66,6 +67,48 @@ describe("parseCliArgs", () => {
 
   it("lists accept in help text", () => {
     assert.match(showHelp(), new RegExp(`\\b${CliCommands.Accept}\\b`));
+  });
+
+  it("parses rewind git ref", () => {
+    const args = parseCliArgs([
+      "node",
+      "beefup",
+      CliCommands.Rewind,
+      "HEAD~1",
+      "--dir",
+      "/tmp/proj",
+    ]);
+    assert.equal(args.command, CliCommands.Rewind);
+    assert.equal(args.gitRef, "HEAD~1");
+    assert.equal(args.dir, "/tmp/proj");
+  });
+
+  it("rejects rewind without a git ref", () => {
+    assert.throws(
+      () => parseCliArgs(["node", "beefup", CliCommands.Rewind]),
+      BeefupError
+    );
+  });
+
+  it("lists revert and rewind in help text", () => {
+    const help = showHelp();
+    assert.match(help, new RegExp(`\\b${CliCommands.Revert}\\b`));
+    assert.match(help, new RegExp(`\\b${CliCommands.Rewind}\\b`));
+  });
+
+  it("parses package-root", () => {
+    const args = parseCliArgs([
+      "node",
+      "beefup",
+      CliCommands.Stage,
+      CliOptionFlags.PackageRoot,
+      "./app",
+    ]);
+    assert.equal(args.packageRoot, "./app");
+  });
+
+  it("lists package-root in help text", () => {
+    assert.match(showHelp(), new RegExp(CliOptionFlags.PackageRoot));
   });
 
   it("lists color and html report formats in help", () => {

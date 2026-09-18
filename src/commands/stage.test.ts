@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
@@ -9,9 +9,10 @@ import { promisify } from "node:util";
 import { withSafeChainStubs } from "../__tests__/with-safe-chain-stubs.js";
 import { runStage } from "../commands/stage.js";
 import { ReportFormats, StageStrategies } from "../config/types.js";
-import { readJsonFile, writeJsonFile } from "../fsutil.js";
+import { pathExists, readJsonFile, writeJsonFile } from "../fsutil.js";
 import type { ProcessRunner } from "../pm/runner.js";
 import type { PackageJson } from "../project/package-json.js";
+import { priorDir } from "../project/paths.js";
 
 const execFile = promisify(execFileCallback);
 
@@ -102,6 +103,70 @@ describe("runStage", () => {
         );
         assert.match(stagedLock, /1\.3\.0/);
         assert.equal(report.strategy, StageStrategies.Worktree);
+        assert.equal(await pathExists(path.join(dir, ".beefup", "prior")), false);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  it("stages a nested package-root into .beefup/staged without the app/ prefix", async () => {
+    await withSafeChainStubs(async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-stage-pkg-"));
+      await mkdir(path.join(dir, "app"), { recursive: true });
+      await seedPnpmProject(path.join(dir, "app"));
+      await git(["init"], dir);
+      await git(["config", "user.email", "beefup@example.test"], dir);
+      await git(["config", "user.name", "Beefup"], dir);
+      await git(["add", "."], dir);
+      await git(["commit", "-m", "init"], dir);
+
+      try {
+        await runStage({
+          projectRoot: dir,
+          packageRoot: "app",
+          strategy: StageStrategies.Worktree,
+          format: ReportFormats.Text,
+          runner,
+        });
+        const live = await readJsonFile<PackageJson>(
+          path.join(dir, "app", "package.json")
+        );
+        const staged = await readJsonFile<PackageJson>(
+          path.join(dir, ".beefup", "staged", "package.json")
+        );
+        assert.equal(live.dependencies?.leftpad, "1.0.0");
+        assert.equal(staged.dependencies?.leftpad, "1.3.0");
+        assert.equal(
+          await pathExists(path.join(dir, ".beefup", "staged", "app", "package.json")),
+          false
+        );
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  it("deletes an existing prior snapshot when staging a new proposal", async () => {
+    await withSafeChainStubs(async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-stage-prior-"));
+      await seedPnpmProject(dir);
+      await writeJsonFile(path.join(priorDir(dir), "package.json"), {
+        name: "old",
+        version: "0.0.0",
+      });
+      try {
+        await runStage({
+          projectRoot: dir,
+          strategy: StageStrategies.Inplace,
+          format: ReportFormats.Text,
+          runner,
+        });
+        assert.equal(await pathExists(path.join(priorDir(dir), "package.json")), false);
+        assert.equal(
+          await pathExists(path.join(dir, ".beefup", "staged", "package.json")),
+          true
+        );
       } finally {
         await rm(dir, { recursive: true, force: true });
       }
