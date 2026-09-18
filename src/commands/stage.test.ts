@@ -12,6 +12,7 @@ import { ReportFormats, StageStrategies } from "../config/types.js";
 import { pathExists, readJsonFile, writeJsonFile } from "../fsutil.js";
 import type { ProcessRunner } from "../pm/runner.js";
 import type { PackageJson } from "../project/package-json.js";
+import { priorDir } from "../project/paths.js";
 
 const execFile = promisify(execFileCallback);
 
@@ -102,6 +103,7 @@ describe("runStage", () => {
         );
         assert.match(stagedLock, /1\.3\.0/);
         assert.equal(report.strategy, StageStrategies.Worktree);
+        assert.equal(await pathExists(path.join(dir, ".beefup", "prior")), false);
       } finally {
         await rm(dir, { recursive: true, force: true });
       }
@@ -138,6 +140,32 @@ describe("runStage", () => {
         assert.equal(
           await pathExists(path.join(dir, ".beefup", "staged", "app", "package.json")),
           false
+        );
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  it("deletes an existing prior snapshot when staging a new proposal", async () => {
+    await withSafeChainStubs(async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-stage-prior-"));
+      await seedPnpmProject(dir);
+      await writeJsonFile(path.join(priorDir(dir), "package.json"), {
+        name: "old",
+        version: "0.0.0",
+      });
+      try {
+        await runStage({
+          projectRoot: dir,
+          strategy: StageStrategies.Inplace,
+          format: ReportFormats.Text,
+          runner,
+        });
+        assert.equal(await pathExists(path.join(priorDir(dir), "package.json")), false);
+        assert.equal(
+          await pathExists(path.join(dir, ".beefup", "staged", "package.json")),
+          true
         );
       } finally {
         await rm(dir, { recursive: true, force: true });

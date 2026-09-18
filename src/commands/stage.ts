@@ -10,7 +10,7 @@ import {
 import { defaultProcessRunner, type ProcessRunner } from "../pm/runner.js";
 import { assertNpmVersion, resolveProtectedPm } from "../pm/safe-chain.js";
 import { regenerateLockfile } from "../pm/update.js";
-import { collectStagedOutputs } from "../project/collect.js";
+import { collectStagedOutputs, removePriorOutputs } from "../project/collect.js";
 import { detectProject } from "../project/detect.js";
 import { resolveCommandPackageRoot } from "../project/package-root.js";
 import { PackageManagers } from "../project/types.js";
@@ -82,6 +82,7 @@ export async function runStage(options: StageOptions): Promise<StageReport> {
       projectRoot,
       project.lockfileName
     );
+    await removePriorOutputs(projectRoot);
   } finally {
     process.off("SIGINT", onSignal);
     process.off("SIGTERM", onSignal);

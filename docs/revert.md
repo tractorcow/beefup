@@ -14,11 +14,13 @@ beefup revert --package-root ./app
 2. Fails if `.beefup/IN_PROGRESS` exists. Re-run `beefup stage` to restore the live tree.
 3. Fails if Safe Chain is not available.
 4. Copies prior `package.json` files, the lockfile, and `pnpm-workspace.yaml` / `.npmrc` when present onto the live project.
-5. Installs with `npm ci` or `pnpm install --frozen-lockfile` through Safe Chain.
+5. Removes `.beefup/staged` if it exists, so only `.beefup/prior` remains.
+6. Installs with `npm ci` or `pnpm install --frozen-lockfile` through Safe Chain.
+7. Regenerates `.beefup/report` in the **applied** context (prior vs live).
 
 There is no policy gate: prior was previously live. Scripts may run, same as accept.
 
-`.beefup/prior` and `.beefup/staged` are left in place. After revert, `beefup report` auto-selects the **proposal** context again (live vs staged) when the staged lockfile still differs from live.
+`.beefup/prior` stays in place as the restored baseline. Run `beefup stage` to propose a new upgrade (that deletes prior).
 
 ## Options
 

@@ -14,12 +14,11 @@ beefup accept --package-root ./app
 2. Fails if `.beefup/IN_PROGRESS` exists (an in-place stage was interrupted). Re-run `beefup stage` to restore the live tree.
 3. Fails if Safe Chain is not available (`aikido-npm` / `aikido-pnpm`, or `safe-chain` on `PATH`).
 4. Re-checks range, override, and alignment policy on the staged files. Error-severity findings refuse the accept; warnings print to stderr.
-5. If the live lockfile is not already identical to staged, copies live writable files into `.beefup/prior` (the baseline for `revert` and applied reports). A second accept of the same proposal does not overwrite that baseline.
+5. Copies live writable files into `.beefup/prior` (the baseline for `revert` and applied reports).
 6. Copies staged `package.json` files, the lockfile, and `pnpm-workspace.yaml` / `.npmrc` when present into the live project.
-7. Installs with `npm ci` or `pnpm install --frozen-lockfile` through Safe Chain (never bare `npm install`).
-8. Regenerates `.beefup/report` in the **applied** context (`.beefup/prior` vs live).
-
-`.beefup/staged` is left in place as an audit trail. `.beefup/prior` is the last live tree before this accept (unless the lockfile was already applied).
+7. Removes `.beefup/staged`. After accept, only `.beefup/prior` remains as a snapshot.
+8. Installs with `npm ci` or `pnpm install --frozen-lockfile` through Safe Chain (never bare `npm install`).
+9. Regenerates `.beefup/report` in the **applied** context (`.beefup/prior` vs live).
 
 ## Options
 
@@ -34,7 +33,7 @@ beefup accept --package-root ./app
 
 Accept **fails** when there is no staged lockfile, an in-place stage is in progress, Safe Chain is missing, staged policy has errors (banned `latest`/`*`, stale override pins, alignment mismatches), or the frozen install exits non-zero.
 
-If the install fails after files were copied, the live manifests and lockfile stay at the accepted versions. Fix the installer error and run `beefup accept` again.
+If the install fails after files were copied, the live manifests and lockfile stay at the accepted versions and `.beefup/staged` is already gone. Fix the installer error, or run `beefup revert` to restore `.beefup/prior`. A second `beefup accept` will not work until you `stage` again.
 
 Introduced CVEs do **not** fail accept. Review the report from `beefup stage` / `beefup report` before running this command.
 

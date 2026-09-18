@@ -8,7 +8,7 @@ import {
 import { BeefupError } from "../errors.js";
 import { pathExists, removePath } from "../fsutil.js";
 import { defaultProcessRunner, type ProcessRunner } from "../pm/runner.js";
-import { snapshotWritableFiles, writeTextFile } from "../project/collect.js";
+import { removeStagedOutputs, snapshotWritableFiles, writeTextFile } from "../project/collect.js";
 import { detectProject } from "../project/detect.js";
 import {
   gitPathFromPackageRelative,
@@ -127,6 +127,7 @@ export async function runRewind(options: RewindOptions): Promise<StageReport> {
       priorDir(projectRoot),
       project.lockfileName
     );
+    await removeStagedOutputs(projectRoot);
   } finally {
     await removePath(extractRoot);
   }

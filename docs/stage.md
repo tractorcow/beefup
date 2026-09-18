@@ -20,8 +20,9 @@ beefup report --format json
 5. Regenerates the lockfile only (`npm update --package-lock-only` or `pnpm update --lockfile-only`), with `--ignore-scripts`.
 6. Re-pins those direct dependencies to the exact versions in the new lockfile.
 7. Copies manifests and the lockfile to `.beefup/staged`.
-8. Restores or discards the isolated workspace so the live tree matches the start state.
-9. Writes a report via `beefup report` (package diff with all scoped installs, policy, CVE introduced / unresolved / fixed).
+8. Deletes `.beefup/prior` if it exists, so only a proposal snapshot remains.
+9. Restores or discards the isolated workspace so the live tree matches the start state.
+10. Writes a report via `beefup report` (package diff with all scoped installs, policy, CVE introduced / unresolved / fixed).
 
 Package diffs compare **path-for-path** (including nested installs and multiple versions of the same package). Displayed from/to columns list unique version tags only.
 
@@ -32,7 +33,7 @@ beefup report
 beefup report --format markdown
 ```
 
-`beefup report` compares **live vs staged** while the staged lockfile differs from live (a proposal). After `accept` or `rewind`, when staged matches live (or there is no differing staged tree) and `.beefup/prior` exists, it compares **prior vs live** (the applied upgrade). After `revert`, staged typically differs again, so the report returns to the proposal context.
+`beefup report` compares **live vs staged** when `.beefup/staged` exists (a proposal). After `accept`, `rewind`, or `revert`, only `.beefup/prior` remains, so the report compares **prior vs live** (the applied upgrade or restored baseline). `.beefup/staged` and `.beefup/prior` are never kept at the same time.
 
 ## Options
 

@@ -14,7 +14,7 @@ import {
 } from "../config/types.js";
 import { PackageChangeTypes } from "../diff/types.js";
 import { BeefupError } from "../errors.js";
-import { writeJsonFile } from "../fsutil.js";
+import { removePath, writeJsonFile } from "../fsutil.js";
 import type { ProcessRunner } from "../pm/runner.js";
 import { BEEFUP_DIR, priorDir, ReportFileNames, stagedDir } from "../project/paths.js";
 import { PackageManagers } from "../project/types.js";
@@ -308,7 +308,7 @@ describe("runReport", () => {
     assert.match(injected, /pkg&quot;onclick/);
   });
 
-  it("compares prior vs live when staged matches the live lockfile", async () => {
+  it("compares prior vs live when only a prior snapshot exists", async () => {
     await withSafeChainStubs(async () => {
       const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-report-applied-"));
       await seedStagedProject(dir);
@@ -340,6 +340,7 @@ packages:
     version: 1.0.0
 `
       );
+      await removePath(stagedDir(dir));
       try {
         const report = await runReport({
           projectRoot: dir,

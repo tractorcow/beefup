@@ -107,30 +107,28 @@ describe("runAccept", () => {
         assert.equal(installCalls.length, 1);
         assert.equal(installCalls[0]?.args.includes("update"), false);
         assert.equal(installCalls[0]?.cwd, path.resolve(dir));
-        assert.equal(await pathExists(path.join(stagedDir(dir), "package.json")), true);
+        assert.equal(await pathExists(path.join(stagedDir(dir), "package.json")), false);
+        assert.equal(await pathExists(path.join(priorDir(dir), "package.json")), true);
       } finally {
         await rm(dir, { recursive: true, force: true });
       }
     });
   });
 
-  it("does not overwrite prior when live already matches staged", async () => {
+  it("fails a second accept because staged was removed", async () => {
     await withSafeChainStubs(async () => {
       const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-accept-re-"));
       await seedStagedProject(dir);
       try {
         await runAccept({ projectRoot: dir, runner });
-        await writeJsonFile(path.join(priorDir(dir), "package.json"), {
-          name: "sentinel-prior",
-          version: "0.0.0",
-        });
-        await runAccept({ projectRoot: dir, runner });
+        await assert.rejects(
+          () => runAccept({ projectRoot: dir, runner }),
+          BeefupError
+        );
         const prior = await readJsonFile<PackageJson>(
           path.join(priorDir(dir), "package.json")
         );
-        assert.equal(prior.name, "sentinel-prior");
-        const live = await readJsonFile<PackageJson>(path.join(dir, "package.json"));
-        assert.equal(live.dependencies?.leftpad, "1.3.0");
+        assert.equal(prior.dependencies?.leftpad, "1.0.0");
       } finally {
         await rm(dir, { recursive: true, force: true });
       }
@@ -156,6 +154,7 @@ describe("runAccept", () => {
           path.join(priorDir(dir), "package.json")
         );
         assert.equal(prior.dependencies?.leftpad, "1.3.0");
+        assert.equal(await pathExists(path.join(stagedDir(dir), "package.json")), false);
       } finally {
         await rm(dir, { recursive: true, force: true });
       }
@@ -282,6 +281,8 @@ describe("runAccept", () => {
         );
         const live = await readJsonFile<PackageJson>(path.join(dir, "package.json"));
         assert.equal(live.dependencies?.leftpad, "1.3.0");
+        assert.equal(await pathExists(path.join(stagedDir(dir), "package.json")), false);
+        assert.equal(await pathExists(path.join(priorDir(dir), "package.json")), true);
       } finally {
         await rm(dir, { recursive: true, force: true });
       }

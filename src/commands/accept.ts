@@ -11,12 +11,12 @@ import { assertPolicy, evaluatePolicy } from "../policy/evaluate.js";
 import {
   applyStagedOutputs,
   collectPriorOutputs,
-  filesByteEqual,
+  removeStagedOutputs,
   requireStagedUpgrade,
 } from "../project/collect.js";
 import { detectProject } from "../project/detect.js";
 import { resolveCommandPackageRoot } from "../project/package-root.js";
-import { inProgressPath, priorDir, stagedDir } from "../project/paths.js";
+import { inProgressPath } from "../project/paths.js";
 import { PackageManagers, type PackageManager } from "../project/types.js";
 import { runReport } from "./report.js";
 
@@ -33,9 +33,9 @@ export interface AcceptResult {
 }
 
 /**
- * Snapshots live files to `.beefup/prior` when applying a new proposal, or when
- * no prior exists yet. A re-accept of an already-applied lockfile keeps the
- * existing prior so revert can still restore that baseline.
+ * Moves live manifests to `.beefup/prior`, copies staged onto the live tree,
+ * removes `.beefup/staged`, installs from the frozen lockfile, then regenerates
+ * the applied report.
  */
 export async function runAccept(options: AcceptOptions): Promise<AcceptResult> {
   const projectRoot = path.resolve(options.projectRoot);
@@ -68,22 +68,17 @@ export async function runAccept(options: AcceptOptions): Promise<AcceptResult> {
   );
   assertPolicy(policy);
 
-  const stagedLock = path.join(stagedDir(projectRoot), project.lockfileName);
-  const priorLock = path.join(priorDir(projectRoot), project.lockfileName);
-  const alreadyApplied = await filesByteEqual(project.lockfilePath, stagedLock);
-  if (!alreadyApplied || !(await pathExists(priorLock))) {
-    await collectPriorOutputs(
-      packageRoot.absolute,
-      projectRoot,
-      project.lockfileName
-    );
-  }
-
+  await collectPriorOutputs(
+    packageRoot.absolute,
+    projectRoot,
+    project.lockfileName
+  );
   const copied = await applyStagedOutputs(
     projectRoot,
     packageRoot.absolute,
     project.lockfileName
   );
+  await removeStagedOutputs(projectRoot);
   await installFromLockfile({
     pm: protectedPm,
     packageManager: project.packageManager,

@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { CliCommands } from "../config/types.js";
@@ -63,20 +63,6 @@ export async function collectPriorOutputs(
     priorDir(projectRoot),
     lockfileName
   );
-}
-
-/**
- * Returns true when both files exist and have identical bytes.
- */
-export async function filesByteEqual(
-  left: string,
-  right: string
-): Promise<boolean> {
-  if (!(await pathExists(left)) || !(await pathExists(right))) {
-    return false;
-  }
-  const [a, b] = await Promise.all([readFile(left), readFile(right)]);
-  return a.equals(b);
 }
 
 /**
@@ -179,6 +165,20 @@ export async function applyPriorOutputs(
     liveRoot,
     lockfileName
   );
+}
+
+/**
+ * Removes `.beefup/staged` if it exists.
+ */
+export async function removeStagedOutputs(projectRoot: string): Promise<void> {
+  await removePath(stagedDir(projectRoot));
+}
+
+/**
+ * Removes `.beefup/prior` if it exists.
+ */
+export async function removePriorOutputs(projectRoot: string): Promise<void> {
+  await removePath(priorDir(projectRoot));
 }
 
 /**

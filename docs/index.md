@@ -2,11 +2,11 @@
 
 Beefup proposes npm and pnpm dependency upgrades without applying them. It rewrites version constraints, regenerates a lockfile without installing packages or running lifecycle scripts, then writes the result under `.beefup/staged` for review. The human-readable report is `.beefup/report/REPORT.html`; stdout defaults to colour.
 
-The live project is left unchanged until you run `beefup accept`. After accept, `.beefup/prior` holds the previous live manifests so you can `revert` or compare the applied upgrade.
+The live project is left unchanged until you run `beefup accept`. After accept, `.beefup/prior` holds the previous live manifests so you can `revert` or compare the applied upgrade. `.beefup/staged` and `.beefup/prior` are mutually exclusive: `stage` deletes prior, `accept` / `rewind` / `revert` delete staged.
 
 Run Beefup from the project root (the git root, or `--dir`). Use `--package-root ./app` when `package.json` and the lockfile live in a subdirectory; `.beefup/` still sits at the project root.
 
-`beefup report` chooses trees automatically: live vs staged while a proposal differs from live, otherwise `.beefup/prior` vs live after accept or rewind.
+`beefup report` follows whichever snapshot exists: live vs staged after `stage`, or `.beefup/prior` vs live after accept, rewind, or revert.
 
 ## Contents
 

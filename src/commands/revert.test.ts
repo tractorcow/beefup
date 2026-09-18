@@ -8,7 +8,7 @@ import { withSafeChainStubs } from "../__tests__/with-safe-chain-stubs.js";
 import { runRevert } from "../commands/revert.js";
 import { StageStrategies } from "../config/types.js";
 import { BeefupError } from "../errors.js";
-import { readJsonFile, writeJsonFile } from "../fsutil.js";
+import { pathExists, readJsonFile, writeJsonFile } from "../fsutil.js";
 import { frozenInstallArgs } from "../pm/install.js";
 import type { ProcessRunner } from "../pm/runner.js";
 import type { PackageJson } from "../project/package-json.js";
@@ -22,7 +22,7 @@ const runner: ProcessRunner = {
 };
 
 /**
- * Seeds live applied files plus a prior baseline and leftover staged proposal.
+ * Seeds live applied files plus a prior baseline (and leftover staged to clear).
  */
 async function seedAppliedProject(dir: string): Promise<void> {
   await writeJsonFile(path.join(dir, "package.json"), {
@@ -111,13 +111,14 @@ describe("runRevert", () => {
         assert.ok(result.copied.includes("package.json"));
         assert.ok(result.copied.includes("pnpm-lock.yaml"));
         const expected = frozenInstallArgs(PackageManagers.Pnpm);
-        assert.equal(calls.length, 1);
-        assert.ok(expected.every((arg) => calls[0]?.args.includes(arg)));
-        assert.equal(calls[0]?.cwd, path.resolve(dir));
-        const staged = await readJsonFile<PackageJson>(
-          path.join(stagedDir(dir), "package.json")
+        const installCalls = calls.filter((call) =>
+          expected.every((arg) => call.args.includes(arg))
         );
-        assert.equal(staged.dependencies?.leftpad, "1.3.0");
+        assert.equal(installCalls.length, 1);
+        assert.ok(expected.every((arg) => installCalls[0]?.args.includes(arg)));
+        assert.equal(installCalls[0]?.cwd, path.resolve(dir));
+        assert.equal(await pathExists(path.join(stagedDir(dir), "package.json")), false);
+        assert.equal(await pathExists(path.join(priorDir(dir), "package.json")), true);
       } finally {
         await rm(dir, { recursive: true, force: true });
       }

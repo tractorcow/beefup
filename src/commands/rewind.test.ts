@@ -10,7 +10,7 @@ import { withSafeChainStubs } from "../__tests__/with-safe-chain-stubs.js";
 import { runRewind } from "../commands/rewind.js";
 import { ReportComparisons, ReportFormats } from "../config/types.js";
 import { BeefupError } from "../errors.js";
-import { readJsonFile, writeJsonFile } from "../fsutil.js";
+import { pathExists, readJsonFile, writeJsonFile } from "../fsutil.js";
 import type { ProcessRunner } from "../pm/runner.js";
 import type { PackageJson } from "../project/package-json.js";
 import { priorDir, stagedDir } from "../project/paths.js";
@@ -149,6 +149,7 @@ packages:
           path.join(priorDir(dir), "apps", "web", "package.json")
         );
         assert.equal(priorWeb.dependencies?.leftpad, "1.0.0");
+        assert.equal(await pathExists(path.join(stagedDir(dir), "package.json")), false);
         const upgraded = report.diff.dependencies.filter(
           (change) => change.name === "leftpad"
         );

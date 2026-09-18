@@ -22,7 +22,6 @@ import { resolveLockfile } from "../lockfile/resolve.js";
 import { defaultProcessRunner, type ProcessRunner } from "../pm/runner.js";
 import { assertNpmVersion, resolveProtectedPm } from "../pm/safe-chain.js";
 import { assertPolicy, evaluatePolicy } from "../policy/evaluate.js";
-import { filesByteEqual } from "../project/collect.js";
 import { detectProject } from "../project/detect.js";
 import { collectDirectDependencyNames } from "../project/direct-deps.js";
 import { resolveCommandPackageRoot } from "../project/package-root.js";
@@ -56,14 +55,12 @@ interface ReportTrees {
 
 /**
  * Chooses live-vs-staged (proposal) or prior-vs-live (applied) comparison trees.
- * A staged lockfile that matches live still counts as a proposal when there is
- * no prior (no-op stage); matching staged plus prior is an applied upgrade.
+ * Only one snapshot exists at a time: staged after `stage`, prior after accept/rewind/revert.
  */
 async function resolveReportTrees(
   projectRoot: string,
   liveRoot: string,
   lockfileName: string,
-  liveLock: string,
   forced?: ReportComparison
 ): Promise<ReportTrees> {
   const staged = stagedDir(projectRoot);
@@ -90,7 +87,7 @@ async function resolveReportTrees(
     return { comparison: ReportComparisons.Applied, beforeRoot: prior, afterRoot: liveRoot };
   }
 
-  if (stagedExists && (!(await filesByteEqual(liveLock, stagedLock)) || !priorExists)) {
+  if (stagedExists) {
     return { comparison: ReportComparisons.Proposal, beforeRoot: liveRoot, afterRoot: staged };
   }
   if (priorExists) {
@@ -118,7 +115,6 @@ export async function runReport(options: ReportOptions): Promise<StageReport> {
     projectRoot,
     packageRoot.absolute,
     project.lockfileName,
-    project.lockfilePath,
     options.comparison
   );
 

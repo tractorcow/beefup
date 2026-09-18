@@ -1,16 +1,21 @@
 import path from "node:path";
 
-import { CliCommands } from "../config/types.js";
+import { CliCommands, ReportFormats } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { pathExists } from "../fsutil.js";
 import { installFromLockfile } from "../pm/install.js";
 import { defaultProcessRunner, type ProcessRunner } from "../pm/runner.js";
 import { assertNpmVersion, resolveProtectedPm } from "../pm/safe-chain.js";
-import { applyPriorOutputs, requirePriorUpgrade } from "../project/collect.js";
+import {
+  applyPriorOutputs,
+  removeStagedOutputs,
+  requirePriorUpgrade,
+} from "../project/collect.js";
 import { detectProject } from "../project/detect.js";
 import { resolveCommandPackageRoot } from "../project/package-root.js";
 import { inProgressPath } from "../project/paths.js";
 import { PackageManagers, type PackageManager } from "../project/types.js";
+import { runReport } from "./report.js";
 
 export interface RevertOptions {
   projectRoot: string;
@@ -24,8 +29,8 @@ export interface RevertResult {
 }
 
 /**
- * Restores `.beefup/prior` manifests onto the live tree and installs from that
- * frozen lockfile. Leaves prior and staged snapshots in place.
+ * Restores `.beefup/prior` onto the live tree, removes `.beefup/staged`, and
+ * installs from the frozen lockfile. Leaves prior in place as the baseline.
  */
 export async function runRevert(options: RevertOptions): Promise<RevertResult> {
   const projectRoot = path.resolve(options.projectRoot);
@@ -54,10 +59,18 @@ export async function runRevert(options: RevertOptions): Promise<RevertResult> {
     packageRoot.absolute,
     project.lockfileName
   );
+  await removeStagedOutputs(projectRoot);
   await installFromLockfile({
     pm: protectedPm,
     packageManager: project.packageManager,
     cwd: packageRoot.absolute,
+    runner,
+  });
+
+  await runReport({
+    projectRoot,
+    packageRoot: packageRoot.relative,
+    format: ReportFormats.Color,
     runner,
   });
 
