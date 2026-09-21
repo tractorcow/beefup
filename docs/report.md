@@ -62,7 +62,7 @@ On disk:
 
 `report.json` is always written (the same data as JSON, including `comparison` (`proposal` or `applied`) and `packageRoot`). A previous human-readable file of another format is removed so only one `REPORT.*` remains.
 
-`REPORT.html` layout: Summary (counts, beefup version, timestamp, comparison label) → Security (Introduced → Unresolved → Fixed, with colour-coded severity and version diffs) → Policy → collapsible package diffs → Legend / paths.
+`REPORT.html` layout: Summary (counts, beefup version, timestamp, comparison label, nested package root when `--package-root` is not `.`) → Security (Introduced → Unresolved → Fixed, with colour-coded severity and version diffs) → Policy → collapsible package diffs → Legend / paths.
 
 Package diffs split optional/platform packages into their own section, bold direct names and italicize transitive ones, use a single Version column for added/removed, and omit path-only churn (same unique versions, different install paths). Meta-vulns from npm audit are kept and labeled `transitive (via …)` instead of blank references. A parent meta-vuln is **introduced** only when it wraps a newly introduced leaf advisory. If npm audit newly lists a parent that only depends on an advisory already present before the upgrade, that row is **unresolved** — the package itself need not have changed. **Unresolved** findings are still open after the upgrade. From-versions are shown in red (struck through in HTML); to-versions in green.
 

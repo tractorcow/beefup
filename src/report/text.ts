@@ -8,6 +8,7 @@ import { Ansi, ansiForSeverity, paint } from "./ansi.js";
 import {
   comparisonLabel,
   introducedSummary,
+  nestedPackageRoot,
   noIntroducedSummary,
   packageChangeCounts,
   policyIssueCount,
@@ -149,8 +150,12 @@ export function renderText(
 
   const parts = [
     `Beefup stage (${report.packageManager}, mode=${report.mode}, strategy=${report.strategy})`,
-    `Comparison: ${comparisonLabel(report.comparison)}`,
   ];
+  const packageDir = nestedPackageRoot(report);
+  if (packageDir) {
+    parts.push(`Package root: ${packageDir}`);
+  }
+  parts.push(`Comparison: ${comparisonLabel(report.comparison)}`);
   if (report.beefupVersion) {
     parts.push(`Beefup ${report.beefupVersion}`);
   }

@@ -1,4 +1,8 @@
-import { ReportComparisons, type ReportComparison } from "../config/types.js";
+import {
+  DefaultPackageRoot,
+  ReportComparisons,
+  type ReportComparison,
+} from "../config/types.js";
 import { groupByChangeType } from "../diff/group.js";
 import { BEEFUP_DIR, BeefupSnapshots } from "../project/paths.js";
 import type { StageReport } from "./types.js";
@@ -75,6 +79,17 @@ export function introducedSummary(
  */
 export function securityFindingCountLabel(count: number): string {
   return count === 1 ? "1 security finding" : `${count} security findings`;
+}
+
+/**
+ * Returns the nested package-root path when manifests are not at the project root.
+ */
+export function nestedPackageRoot(report: StageReport): string | undefined {
+  const value = report.packageRoot?.trim();
+  if (!value || value === DefaultPackageRoot) {
+    return undefined;
+  }
+  return value;
 }
 
 /**

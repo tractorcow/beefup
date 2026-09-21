@@ -9,6 +9,7 @@ import {
   comparisonLabel,
   comparisonPathsLine,
   introducedSummary,
+  nestedPackageRoot,
   noIntroducedSummary,
   packageChangeCounts,
   policyIssueCount,
@@ -181,8 +182,16 @@ function formatSummary(report: StageReport): string {
     `<li>Mode: <code>${escapeHtml(report.mode)}</code></li>`,
     `<li>Strategy: <code>${escapeHtml(report.strategy)}</code></li>`,
     `<li>Package manager: <code>${escapeHtml(report.packageManager)}</code></li>`,
-    `<li>Comparison: ${escapeHtml(comparisonLabel(report.comparison))}</li>`,
   ];
+  const packageDir = nestedPackageRoot(report);
+  if (packageDir) {
+    items.push(
+      `<li>Package root: <code>${escapeHtml(packageDir)}</code></li>`
+    );
+  }
+  items.push(
+    `<li>Comparison: ${escapeHtml(comparisonLabel(report.comparison))}</li>`
+  );
   if (report.beefupVersion) {
     items.push(`<li>Beefup: <code>${escapeHtml(report.beefupVersion)}</code></li>`);
   }
