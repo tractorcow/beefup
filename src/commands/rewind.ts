@@ -32,6 +32,8 @@ export interface RewindOptions {
   packageRoot?: string;
   gitRef: string;
   format: ReportFormat;
+  /** When true, skip Safe Chain and use npm/pnpm directly. */
+  noSafeChain?: boolean;
   runner?: ProcessRunner;
 }
 
@@ -138,6 +140,7 @@ export async function runRewind(options: RewindOptions): Promise<StageReport> {
     format: options.format,
     runner,
     comparison: ReportComparisons.Applied,
+    noSafeChain: options.noSafeChain,
   });
 }
 

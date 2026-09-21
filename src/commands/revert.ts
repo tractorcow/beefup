@@ -21,6 +21,8 @@ export interface RevertOptions {
   projectRoot: string;
   packageRoot?: string;
   format?: ReportFormat;
+  /** When true, skip Safe Chain and use npm/pnpm directly. */
+  noSafeChain?: boolean;
   runner?: ProcessRunner;
 }
 
@@ -50,7 +52,9 @@ export async function runRevert(options: RevertOptions): Promise<RevertResult> {
     );
   }
 
-  const protectedPm = await resolveProtectedPm(project.packageManager);
+  const protectedPm = await resolveProtectedPm(project.packageManager, {
+    noSafeChain: options.noSafeChain,
+  });
   if (project.packageManager === PackageManagers.Npm) {
     await assertNpmVersion(protectedPm);
   }
@@ -73,6 +77,7 @@ export async function runRevert(options: RevertOptions): Promise<RevertResult> {
     packageRoot: packageRoot.relative,
     format: options.format ?? ReportFormats.Html,
     runner,
+    noSafeChain: options.noSafeChain,
   });
 
   return {

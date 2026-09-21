@@ -9,7 +9,7 @@ CLI for **staged, pinned, audited** npm/pnpm dependency upgrades. A proposed upg
 - Git
 - [Aikido Safe Chain](https://github.com/AikidoSec/safe-chain) wrapping the package manager
 
-Beefup **will not run** unless Safe Chain is enabled. It looks for `aikido-pnpm` / `aikido-npm`, or `safe-chain`, on `PATH`. That keeps lockfile updates and security scans behind Safe Chain’s malware checks and minimum package age.
+Beefup **will not run** unless Safe Chain is enabled. It looks for `aikido-pnpm` / `aikido-npm`, or `safe-chain`, on `PATH`. That keeps lockfile updates and security scans behind Safe Chain’s malware checks and minimum package age. Pass `--no-safe-chain` only when you need to bypass that check and run the raw package manager.
 
 ### Install Safe Chain
 

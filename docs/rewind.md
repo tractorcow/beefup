@@ -20,8 +20,8 @@ beefup rewind --package-root ./app HEAD~1
 
 Rewind only needs a read-only copy of historic manifests. It does not require a clean working tree.
 
-`--dir`, `--package-root`, and `--format` apply. `--format` selects the human-readable file under `.beefup/report`; `report.json` is always written. Stdout is automatic colour or plain text. See [report](report.md).
+`--dir`, `--package-root`, `--format`, and `--no-safe-chain` apply. `--format` selects the human-readable file under `.beefup/report`; `report.json` is always written. Stdout is automatic colour or plain text. See [report](report.md).
 
 ## Failures
 
-Rewind **fails** outside a git repository, when the ref does not exist, when the historic revision has no root `package.json` or matching lockfile, or when report generation fails (missing Safe Chain, policy errors on the live tree, and so on).
+Rewind **fails** outside a git repository, when the ref does not exist, when the historic revision has no root `package.json` or matching lockfile, or when report generation fails (missing Safe Chain unless `--no-safe-chain`, policy errors on the live tree, and so on).

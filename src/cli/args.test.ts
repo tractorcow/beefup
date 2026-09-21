@@ -18,6 +18,17 @@ describe("parseCliArgs", () => {
     assert.equal(args.strategy, undefined);
     assert.equal(args.format, ReportFormats.Html);
     assert.equal(args.mode, undefined);
+    assert.equal(args.noSafeChain, false);
+  });
+
+  it("parses --no-safe-chain", () => {
+    const args = parseCliArgs([
+      "node",
+      "beefup",
+      CliCommands.Stage,
+      CliOptionFlags.NoSafeChain,
+    ]);
+    assert.equal(args.noSafeChain, true);
   });
 
   it("parses report command", () => {
@@ -134,6 +145,10 @@ describe("parseCliArgs", () => {
 
   it("lists package-root in help text", () => {
     assert.match(showHelp(), new RegExp(CliOptionFlags.PackageRoot));
+  });
+
+  it("lists --no-safe-chain in help text", () => {
+    assert.match(showHelp(), new RegExp(CliOptionFlags.NoSafeChain));
   });
 
   it("lists html markdown and text report formats in help", () => {

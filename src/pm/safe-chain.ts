@@ -1,21 +1,38 @@
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
 
+import { CliOptionFlags } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { PackageManagers, type PackageManager } from "../project/types.js";
 
 const execFile = promisify(execFileCallback);
 
+/** PATH binary names used to locate Aikido Safe Chain wrappers. */
+export const SafeChainBins = {
+  Wrapper: "safe-chain",
+  AikidoNpm: "aikido-npm",
+  AikidoPnpm: "aikido-pnpm",
+} as const;
+
+/** Package-manager binary and extra argv prefix used for lockfile and install commands. */
 export interface ProtectedPm {
   bin: string;
   prefixArgs: string[];
+}
+
+/** Options for resolving the package-manager binary Beefup will invoke. */
+export interface ResolveProtectedPmOptions {
+  /** When true, skip Safe Chain and use npm/pnpm directly. */
+  noSafeChain?: boolean;
 }
 
 /**
  * Returns the Aikido Safe Chain wrapper binary name for a package manager.
  */
 export function aikidoBinName(packageManager: PackageManager): string {
-  return packageManager === PackageManagers.Npm ? "aikido-npm" : "aikido-pnpm";
+  return packageManager === PackageManagers.Npm
+    ? SafeChainBins.AikidoNpm
+    : SafeChainBins.AikidoPnpm;
 }
 
 /**
@@ -33,23 +50,40 @@ async function which(bin: string): Promise<string | undefined> {
 
 /**
  * Locates a Safe Chain–protected package manager binary and prefix args.
+ * With `noSafeChain`, uses the raw npm/pnpm binary instead of requiring a wrapper.
  */
 export async function resolveProtectedPm(
-  packageManager: PackageManager
+  packageManager: PackageManager,
+  options: ResolveProtectedPmOptions = {}
 ): Promise<ProtectedPm> {
+  if (options.noSafeChain) {
+    return resolveRawPm(packageManager);
+  }
+
   const aikido = await which(aikidoBinName(packageManager));
   if (aikido) {
     return { bin: aikido, prefixArgs: [] };
   }
 
-  const safeChain = await which("safe-chain");
+  const safeChain = await which(SafeChainBins.Wrapper);
   if (safeChain) {
     return { bin: safeChain, prefixArgs: [packageManager] };
   }
 
   throw new BeefupError(
-    `Safe-chain is not enabled: neither ${aikidoBinName(packageManager)} nor safe-chain was found on PATH. Install Aikido Safe Chain and ensure it wraps ${packageManager}.`
+    `Safe-chain is not enabled: neither ${aikidoBinName(packageManager)} nor ${SafeChainBins.Wrapper} was found on PATH. Install Aikido Safe Chain and ensure it wraps ${packageManager}, or pass ${CliOptionFlags.NoSafeChain} to bypass.`
   );
+}
+
+/**
+ * Resolves the raw npm or pnpm binary on PATH (no Safe Chain wrapper).
+ */
+async function resolveRawPm(packageManager: PackageManager): Promise<ProtectedPm> {
+  const raw = await which(packageManager);
+  if (!raw) {
+    throw new BeefupError(`${packageManager} was not found on PATH`);
+  }
+  return { bin: raw, prefixArgs: [] };
 }
 
 /**

@@ -51,6 +51,8 @@ export interface ReportOptions {
   runner?: ProcessRunner;
   /** Force proposal or applied trees; otherwise auto-selected. */
   comparison?: ReportComparison;
+  /** When true, skip Safe Chain and use npm/pnpm directly. */
+  noSafeChain?: boolean;
 }
 
 interface ReportTrees {
@@ -134,7 +136,9 @@ export async function runReport(options: ReportOptions): Promise<StageReport> {
     parseStrategy(previous?.strategy) ??
     StageStrategies.Worktree;
 
-  const protectedPm = await resolveProtectedPm(project.packageManager);
+  const protectedPm = await resolveProtectedPm(project.packageManager, {
+    noSafeChain: options.noSafeChain,
+  });
   if (project.packageManager === PackageManagers.Npm) {
     await assertNpmVersion(protectedPm);
   }

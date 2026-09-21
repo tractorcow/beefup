@@ -24,6 +24,8 @@ export interface AcceptOptions {
   projectRoot: string;
   packageRoot?: string;
   format?: ReportFormat;
+  /** When true, skip Safe Chain and use npm/pnpm directly. */
+  noSafeChain?: boolean;
   runner?: ProcessRunner;
 }
 
@@ -55,7 +57,9 @@ export async function runAccept(options: AcceptOptions): Promise<AcceptResult> {
     );
   }
 
-  const protectedPm = await resolveProtectedPm(project.packageManager);
+  const protectedPm = await resolveProtectedPm(project.packageManager, {
+    noSafeChain: options.noSafeChain,
+  });
   if (project.packageManager === PackageManagers.Npm) {
     await assertNpmVersion(protectedPm);
   }
@@ -92,6 +96,7 @@ export async function runAccept(options: AcceptOptions): Promise<AcceptResult> {
     packageRoot: packageRoot.relative,
     format: options.format ?? ReportFormats.Html,
     runner,
+    noSafeChain: options.noSafeChain,
   });
 
   return {

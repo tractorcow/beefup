@@ -22,6 +22,8 @@ export interface CliArgs {
   dir?: string;
   packageRoot?: string;
   format: ReportFormat;
+  /** When true, skip Safe Chain and use npm/pnpm directly. */
+  noSafeChain: boolean;
   help: boolean;
   version: boolean;
 }
@@ -32,6 +34,7 @@ export interface CliArgs {
 export function parseCliArgs(argv: string[]): CliArgs {
   const args: CliArgs = {
     format: ReportFormats.Html,
+    noSafeChain: false,
     help: false,
     version: false,
   };
@@ -75,6 +78,8 @@ export function parseCliArgs(argv: string[]): CliArgs {
         );
       }
       args.format = value;
+    } else if (arg === CliOptionFlags.NoSafeChain) {
+      args.noSafeChain = true;
     } else if (!arg.startsWith("-") && !args.command) {
       args.command = arg;
     } else if (
@@ -124,6 +129,7 @@ OPTIONS:
     ${CliOptionFlags.Dir} <path>                 Project directory (default: cwd)
     ${CliOptionFlags.PackageRoot} <path>       Directory with package.json and lockfile (default: project root)
     ${CliOptionFlags.Format} ${Object.values(ReportFormats).join("|")}  Human-readable file under ${BEEFUP_DIR}/report (default: ${ReportFormats.Html}; ${ReportFileNames.Json} is always written)
+    ${CliOptionFlags.NoSafeChain}            Bypass Safe Chain and use npm/pnpm directly
     -h, --help                   Show this help
     -v, --version                Show version
 

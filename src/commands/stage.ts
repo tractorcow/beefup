@@ -26,6 +26,8 @@ export interface StageOptions {
   mode?: UpgradeMode;
   strategy: StageStrategyName;
   format: ReportFormat;
+  /** When true, skip Safe Chain and use npm/pnpm directly. */
+  noSafeChain?: boolean;
   runner?: ProcessRunner;
 }
 
@@ -42,7 +44,9 @@ export async function runStage(options: StageOptions): Promise<StageReport> {
   const runner = options.runner ?? defaultProcessRunner;
   const project = await detectProject(packageRoot.absolute);
   const config = await loadConfig(packageRoot.absolute, options.mode);
-  const protectedPm = await resolveProtectedPm(project.packageManager);
+  const protectedPm = await resolveProtectedPm(project.packageManager, {
+    noSafeChain: options.noSafeChain,
+  });
   if (project.packageManager === PackageManagers.Npm) {
     await assertNpmVersion(protectedPm);
   }
@@ -97,6 +101,7 @@ export async function runStage(options: StageOptions): Promise<StageReport> {
     format: options.format,
     runner,
     comparison: ReportComparisons.Proposal,
+    noSafeChain: options.noSafeChain,
   });
 }
 

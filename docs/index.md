@@ -21,5 +21,5 @@ Run Beefup from the project root (the git root, or `--dir`). Use `--package-root
 
 - Node.js 22+
 - pnpm 11.22.0 or npm 12+
-- [Aikido Safe Chain](https://github.com/AikidoSec/safe-chain) wrapping the package manager
+- [Aikido Safe Chain](https://github.com/AikidoSec/safe-chain) wrapping the package manager (or `--no-safe-chain` to bypass)
 - A `package-lock.json` or `pnpm-lock.yaml` in the target project

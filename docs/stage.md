@@ -12,7 +12,7 @@ beefup stage --package-root ./app
 ## What it does
 
 1. Detects npm or pnpm from the lockfile (`package-lock.json` or `pnpm-lock.yaml`). If both exist, it uses `packageManager` in `package.json`.
-2. Fails if Safe Chain is not available (`aikido-npm` / `aikido-pnpm`, or `safe-chain` on `PATH`).
+2. Fails if Safe Chain is not available (`aikido-npm` / `aikido-pnpm`, or `safe-chain` on `PATH`), unless `--no-safe-chain` is set.
 3. Prepares an isolated workspace (`worktree` or `inplace`).
 4. Rewrites direct dependency specs for the chosen mode, skipping `workspace:`, `file:`, `link:`, and `catalog:`.
 5. Regenerates the lockfile only (`npm update --package-lock-only` or `pnpm update --lockfile-only`), with `--ignore-scripts`.
@@ -31,6 +31,7 @@ beefup stage --package-root ./app
 | `--dir` | path | current working directory |
 | `--package-root` | path | project root (the directory with `package.json` and the lockfile) |
 | `--format` | `html`, `markdown`, `text` | `html` (file under `.beefup/report`; `report.json` is always written) |
+| `--no-safe-chain` | flag | off (require Safe Chain; with the flag, use npm/pnpm directly) |
 
 `--mode` overrides project config. `same-major` rewrites pins to `^<current>`. `latest` rewrites them to `>=<current>`. After lockfile regeneration, specs are re-pinned to exact versions.
 
@@ -85,6 +86,6 @@ Defaults: mode `same-major`, ban `latest` and `*`, prefer exact pins, alignment 
 
 ## Failures and warnings
 
-Stage **fails** when Safe Chain is missing, lockfile regeneration fails, `latest` or `*` remain after re-pin, or an override pin sits below a version the lockfile requires. Alignment mismatches fail unless configured to warn.
+Stage **fails** when Safe Chain is missing (unless `--no-safe-chain`), lockfile regeneration fails, `latest` or `*` remain after re-pin, or an override pin sits below a version the lockfile requires. Alignment mismatches fail unless configured to warn.
 
 Leftover loose ranges (for example `^1.2.3`) warn when `preferExact` is true. Introduced CVEs are printed loudly and listed in the report; they do **not** fail stage. Review `.beefup/staged` before `beefup accept`.

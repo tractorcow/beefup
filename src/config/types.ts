@@ -63,6 +63,7 @@ export const CliOptionFlags = {
   Dir: "--dir",
   Format: "--format",
   PackageRoot: "--package-root",
+  NoSafeChain: "--no-safe-chain",
 } as const;
 
 /** Default package-root path: manifests live at the project root. */

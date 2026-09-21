@@ -26,7 +26,7 @@ Proposal reports appear after `stage`. Applied reports appear after `accept`, `r
 
 1. Detects npm or pnpm from the live lockfile.
 2. Chooses comparison trees as above. Fails if neither snapshot lockfile exists (`run beefup stage or beefup rewind first`).
-3. Fails if Safe Chain is not available (`aikido-npm` / `aikido-pnpm`, or `safe-chain` on `PATH`).
+3. Fails if Safe Chain is not available (`aikido-npm` / `aikido-pnpm`, or `safe-chain` on `PATH`), unless `--no-safe-chain` is set.
 4. Diffs the two lockfiles path-for-path (including nested installs and multiple versions of the same package). Displayed from/to columns list unique version tags only.
 5. Evaluates range, override, and alignment policy on the **after** tree (staged for a proposal, live for an applied report).
 6. Scans both trees with `npm audit` / `pnpm audit` and Beefup’s pinned `cve-lite-cli`, then classifies findings as introduced, unresolved, or fixed.
@@ -42,6 +42,7 @@ Proposal reports appear after `stage`. Applied reports appear after `accept`, `r
 | `--format` | `html`, `markdown`, `text` | `html` (file under `.beefup/report`; `report.json` is always written) |
 | `--mode` | `same-major`, `latest` | last report, else `same-major` / project config |
 | `--strategy` | `worktree`, `inplace` | last report, else `worktree` |
+| `--no-safe-chain` | flag | off (require Safe Chain; with the flag, use npm/pnpm directly) |
 
 `--format` selects only the human-readable file. It does not change stdout. `--mode` and `--strategy` are recorded on the report for later runs. They do not re-run the upgrade. `--package-root` is used when set; otherwise report reuses the path stored in `report.json`.
 
@@ -67,6 +68,6 @@ Introduced CVEs print a stderr warning pointing at `.beefup/staged` (proposal) o
 
 ## Failures
 
-Report **fails** when there is no staged or prior lockfile, Safe Chain is missing, cve-lite cannot run, a lockfile cannot be parsed, or the after-tree policy has errors (banned `latest`/`*`, stale override pins, alignment mismatches unless configured to warn).
+Report **fails** when there is no staged or prior lockfile, Safe Chain is missing (unless `--no-safe-chain`), cve-lite cannot run, a lockfile cannot be parsed, or the after-tree policy has errors (banned `latest`/`*`, stale override pins, alignment mismatches unless configured to warn).
 
 Introduced CVEs do **not** fail report. Review them before `beefup accept`.
