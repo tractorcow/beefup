@@ -7,6 +7,7 @@ import { describe, it } from "node:test";
 import { withSafeChainStubs } from "../__tests__/with-safe-chain-stubs.js";
 import { runReport } from "../commands/report.js";
 import {
+  DefaultPackageRoot,
   ReportComparisons,
   ReportFormats,
   StageStrategies,
@@ -269,6 +270,8 @@ describe("runReport", () => {
     assert.equal(unresolvedIdx, -1);
     assert.equal(fixedIdx, -1);
     assert.match(markdown, /regressions/);
+    assert.match(markdown, /2 security findings introduced — review before accept/);
+    assert.doesNotMatch(markdown, /CVE\(s\)/);
     assert.doesNotMatch(markdown, /remain open risk/);
     assert.match(markdown, /\| Severity \| Title \| References \| Package \|/);
     assert.doesNotMatch(markdown, /\| Source \|/);
@@ -287,6 +290,7 @@ describe("runReport", () => {
     );
     assert.match(markdown, /\| \*axios\* \| `0\.21\.0` \|/);
     assert.match(markdown, /## Legend/);
+    assert.doesNotMatch(markdown, /Package root:/);
 
     const text = renderText(report);
     assert.match(text, /\[D\].*leftpad/);
@@ -331,6 +335,51 @@ describe("runReport", () => {
     assert.doesNotMatch(injected, /<script>alert/);
     assert.match(injected, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
     assert.match(injected, /pkg&quot;onclick/);
+  });
+
+  it("uses applied wording for prior-vs-live reports", () => {
+    const report: StageReport = {
+      mode: UpgradeModes.SameMajor,
+      strategy: StageStrategies.Worktree,
+      packageManager: PackageManagers.Npm,
+      comparison: ReportComparisons.Applied,
+      packageRoot: "packages/watercare-cms",
+      generatedAt: "2026-08-24T00:00:00.000Z",
+      beefupVersion: "0.1.0",
+      diff: { dependencies: [], devDependencies: [] },
+      ranges: [],
+      overrides: [],
+      alignment: [],
+      security: {
+        fixed: [],
+        introduced: [
+          {
+            id: "CVE-1",
+            refs: [],
+            packageName: "leftpad",
+            severity: FindingSeverities.High,
+            source: SecuritySources.NpmAudit,
+            title: "example",
+          },
+        ],
+        unresolved: [],
+      },
+      warnings: [],
+    };
+    const markdown = renderMarkdown(report);
+    assert.match(markdown, /1 security finding introduced versus prior/);
+    assert.doesNotMatch(markdown, /review before accept/);
+    assert.doesNotMatch(markdown, /staged upgrade/);
+    assert.match(markdown, /historic lockfile/);
+    assert.match(markdown, /Package root: `packages\/watercare-cms`/);
+    const text = renderText(report);
+    assert.match(text, /Package root: packages\/watercare-cms/);
+    const html = renderHtml(report);
+    assert.match(html, /Package root: <code>packages\/watercare-cms<\/code>/);
+    assert.doesNotMatch(
+      renderMarkdown({ ...report, packageRoot: DefaultPackageRoot }),
+      /Package root:/
+    );
   });
 
   it("compares prior vs live when only a prior snapshot exists", async () => {

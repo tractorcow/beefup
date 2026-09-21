@@ -1,10 +1,19 @@
-import { execFile as execFileCallback } from "node:child_process";
+import { execFile as execFileCallback, spawn } from "node:child_process";
 import { promisify } from "node:util";
 
 import { BeefupError } from "../errors.js";
+import { formatBytes, formatDuration, getLogger } from "../log.js";
 import { BEEFUP_DIR } from "../project/paths.js";
 
 const execFile = promisify(execFileCallback);
+
+/** Git's generic failure exit status (missing path, invalid object, and similar). */
+const GitFailureExitCode = 128;
+
+/** Git executable Beefup invokes. */
+export const GitBins = {
+  Git: "git",
+} as const;
 
 /** Git subcommands Beefup invokes. */
 export const GitSubcommands = {
@@ -48,11 +57,25 @@ export async function runGit(
   args: string[],
   cwd: string
 ): Promise<{ stdout: string; stderr: string }> {
-  const { stdout, stderr } = await execFile("git", args, {
-    cwd,
-    encoding: "utf8",
-  });
-  return { stdout: stdout.trim(), stderr: stderr.trim() };
+  const log = getLogger();
+  const started = performance.now();
+  const rendered = `${GitBins.Git} ${args.join(" ")}`;
+  log.debug(`$ ${rendered} (cwd ${cwd})`);
+  try {
+    const { stdout, stderr } = await execFile(GitBins.Git, args, {
+      cwd,
+      encoding: "utf8",
+    });
+    log.debug(
+      `${rendered} exited 0 in ${formatDuration(performance.now() - started)}`
+    );
+    return { stdout: stdout.trim(), stderr: stderr.trim() };
+  } catch (error) {
+    log.debug(
+      `${rendered} failed in ${formatDuration(performance.now() - started)}`
+    );
+    throw error;
+  }
 }
 
 /**
@@ -87,7 +110,8 @@ export async function resolveGitRef(ref: string, cwd: string): Promise<string> {
 
 /**
  * Returns the contents of `ref:path` via `git show`, or undefined when missing.
- * Does not trim, so lockfile/manifest bytes stay intact.
+ * Does not trim, so lockfile/manifest bytes stay intact. Collects stdout without
+ * Node's 1MiB execFile cap, which otherwise treats large lockfiles as missing.
  */
 export async function gitShowFile(
   ref: string,
@@ -95,15 +119,77 @@ export async function gitShowFile(
   cwd: string
 ): Promise<string | undefined> {
   const spec = `${ref}:${relPath.replaceAll("\\", "/")}`;
-  try {
-    const { stdout } = await execFile("git", [GitSubcommands.Show, spec], {
-      cwd,
-      encoding: "utf8",
-    });
+  const { code, stdout, stderr } = await spawnGit(
+    [GitSubcommands.Show, spec],
+    cwd
+  );
+  if (code === 0) {
     return stdout;
-  } catch {
+  }
+  if (isGitMissingPathError(code, stderr)) {
     return undefined;
   }
+  throw new BeefupError(
+    `failed to read ${spec} from git: ${stderr.trim() || `exit ${code}`}`
+  );
+}
+
+/**
+ * Runs git and collects full stdout/stderr with no maxBuffer limit.
+ */
+async function spawnGit(
+  args: string[],
+  cwd: string
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
+  const log = getLogger();
+  const started = performance.now();
+  const rendered = `${GitBins.Git} ${args.join(" ")}`;
+  log.debug(`$ ${rendered} (cwd ${cwd})`);
+  const result = await new Promise<{
+    code: number | null;
+    stdout: string;
+    stderr: string;
+  }>((resolve, reject) => {
+    const child = spawn(GitBins.Git, args, { cwd });
+    const stdoutChunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
+    child.stdout.on("data", (chunk: Buffer) => {
+      stdoutChunks.push(chunk);
+    });
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderrChunks.push(chunk);
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      resolve({
+        code,
+        stdout: Buffer.concat(stdoutChunks).toString("utf8"),
+        stderr: Buffer.concat(stderrChunks).toString("utf8"),
+      });
+    });
+  });
+  const duration = formatDuration(performance.now() - started);
+  if (result.code === 0) {
+    log.debug(
+      `${rendered} exited 0 in ${duration} (${formatBytes(Buffer.byteLength(result.stdout))})`
+    );
+  } else {
+    log.debug(`${rendered} exited ${result.code} in ${duration}`);
+  }
+  return result;
+}
+
+/**
+ * Returns true when git failed because `ref:path` is not in the tree.
+ */
+function isGitMissingPathError(code: number | null, stderr: string): boolean {
+  if (code !== GitFailureExitCode) {
+    return false;
+  }
+  return (
+    stderr.includes("does not exist in") ||
+    stderr.includes("exists on disk, but not in")
+  );
 }
 
 /**

@@ -76,6 +76,17 @@ export function normalizeSeverity(raw: string | undefined): FindingSeverity {
 }
 
 /**
+ * True when this row is an npm meta-vuln: no advisory of its own, only via packages.
+ */
+export function isMetaFinding(finding: SecurityFinding): boolean {
+  return (
+    finding.refs.length === 0 &&
+    finding.source === SecuritySources.NpmAudit &&
+    (finding.viaPackages?.length ?? 0) > 0
+  );
+}
+
+/**
  * Builds a stable identity key for a finding (id + package name).
  */
 function findingKey(finding: SecurityFinding): string {
@@ -98,6 +109,7 @@ function sortFindings(findings: SecurityFinding[]): SecurityFinding[] {
 
 /**
  * Classifies findings as fixed, introduced, or unresolved by comparing before/after scans.
+ * Parent meta-vulns count as introduced only when they wrap a newly introduced leaf advisory.
  */
 export function classifyFindings(
   before: SecurityFinding[],
@@ -122,9 +134,73 @@ export function classifyFindings(
     }
   }
 
-  return {
+  return reclassifyMetaIntroduced({
     fixed: sortFindings(fixed),
     introduced: sortFindings(introduced),
     unresolved: sortFindings(unresolved),
+  });
+}
+
+/**
+ * Moves introduced meta-vulns that only wrap already-known advisories into unresolved.
+ * npm audit re-parents the same leaf issues onto unchanged packages when a dependency
+ * finding changes shape (advisory → "depends on vulnerable package(s)").
+ */
+function reclassifyMetaIntroduced(result: ClassifiedFindings): ClassifiedFindings {
+  const introducedLeaves = new Set(
+    result.introduced
+      .filter((item) => !isMetaFinding(item))
+      .map((item) => item.packageName)
+  );
+  const viaByPackage = new Map<string, string[]>();
+  for (const item of [...result.introduced, ...result.unresolved]) {
+    if (isMetaFinding(item) && item.viaPackages) {
+      viaByPackage.set(item.packageName, item.viaPackages);
+    }
+  }
+
+  const stillIntroduced: SecurityFinding[] = [];
+  const moved: SecurityFinding[] = [];
+  for (const item of result.introduced) {
+    if (
+      !isMetaFinding(item) ||
+      reachesIntroducedLeaf(item.packageName, introducedLeaves, viaByPackage)
+    ) {
+      stillIntroduced.push(item);
+    } else {
+      moved.push(item);
+    }
+  }
+
+  return {
+    fixed: result.fixed,
+    introduced: sortFindings(stillIntroduced),
+    unresolved: sortFindings([...result.unresolved, ...moved]),
   };
+}
+
+/**
+ * True when `packageName` is a newly introduced leaf advisory, or a meta-vuln
+ * whose via-chain reaches one (directly or through other meta-vulns).
+ */
+function reachesIntroducedLeaf(
+  packageName: string,
+  introducedLeaves: ReadonlySet<string>,
+  viaByPackage: ReadonlyMap<string, string[]>,
+  seen: Set<string> = new Set()
+): boolean {
+  if (introducedLeaves.has(packageName)) {
+    return true;
+  }
+  if (seen.has(packageName)) {
+    return false;
+  }
+  seen.add(packageName);
+  const vias = viaByPackage.get(packageName);
+  if (!vias) {
+    return false;
+  }
+  return vias.some((via) =>
+    reachesIntroducedLeaf(via, introducedLeaves, viaByPackage, seen)
+  );
 }

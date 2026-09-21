@@ -5,7 +5,14 @@ import { PackageChangeTypes, type PackageChange } from "../diff/types.js";
 import type { FindingSeverity, SecurityFinding } from "../security/classify.js";
 import { formatRefsText } from "../security/refs.js";
 import { Ansi, ansiForSeverity, paint } from "./ansi.js";
-import { comparisonLabel, packageChangeCounts, policyIssueCount } from "./shared.js";
+import {
+  comparisonLabel,
+  introducedSummary,
+  nestedPackageRoot,
+  noIntroducedSummary,
+  packageChangeCounts,
+  policyIssueCount,
+} from "./shared.js";
 import type { StageReport } from "./types.js";
 
 export interface TextRenderOptions {
@@ -143,8 +150,12 @@ export function renderText(
 
   const parts = [
     `Beefup stage (${report.packageManager}, mode=${report.mode}, strategy=${report.strategy})`,
-    `Comparison: ${comparisonLabel(report.comparison)}`,
   ];
+  const packageDir = nestedPackageRoot(report);
+  if (packageDir) {
+    parts.push(`Package root: ${packageDir}`);
+  }
+  parts.push(`Comparison: ${comparisonLabel(report.comparison)}`);
   if (report.beefupVersion) {
     parts.push(`Beefup ${report.beefupVersion}`);
   }
@@ -158,12 +169,12 @@ export function renderText(
   );
 
   if (introduced.length === 0) {
-    parts.push("No CVEs introduced by this staged upgrade");
+    parts.push(noIntroducedSummary(report.comparison));
   } else {
     parts.push(
       paint(
         [Ansi.Bold, Ansi.Red],
-        `Warning: ${introduced.length} CVE(s) introduced — review before accept`,
+        introducedSummary(introduced.length, report.comparison),
         color
       )
     );

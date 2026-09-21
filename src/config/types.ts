@@ -63,7 +63,28 @@ export const CliOptionFlags = {
   Dir: "--dir",
   Format: "--format",
   PackageRoot: "--package-root",
+  NoSafeChain: "--no-safe-chain",
+  Quiet: "--quiet",
+  QuietShort: "-q",
+  Verbose: "--verbose",
+  VerboseShort: "-V",
+  Debug: "--debug",
+  LogLevel: "--log-level",
 } as const;
+
+/** Closed set of stderr log verbosity levels. */
+export const LogLevels = {
+  Quiet: "quiet",
+  Warn: "warn",
+  Info: "info",
+  Debug: "debug",
+} as const;
+
+/** Stderr log verbosity (`quiet`, `warn`, `info`, or `debug`). */
+export type LogLevel = (typeof LogLevels)[keyof typeof LogLevels];
+
+/** Default log level: warnings and errors only. */
+export const DefaultLogLevel = LogLevels.Warn;
 
 /** Default package-root path: manifests live at the project root. */
 export const DefaultPackageRoot = "." as const;
@@ -124,6 +145,16 @@ export function isAlignmentAction(value: unknown): value is AlignmentAction {
 export function isReportComparison(value: unknown): value is ReportComparison {
   return (
     value === ReportComparisons.Proposal || value === ReportComparisons.Applied
+  );
+}
+
+/**
+ * Returns true when `value` is a known log verbosity level.
+ */
+export function isLogLevel(value: unknown): value is LogLevel {
+  return (
+    typeof value === "string" &&
+    (Object.values(LogLevels) as string[]).includes(value)
   );
 }
 

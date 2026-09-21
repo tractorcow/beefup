@@ -7,6 +7,7 @@ import {
 } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { pathExists, removePath } from "../fsutil.js";
+import { formatBytes, getLogger } from "../log.js";
 import { defaultProcessRunner, type ProcessRunner } from "../pm/runner.js";
 import { removeStagedOutputs, snapshotWritableFiles, writeTextFile } from "../project/collect.js";
 import { detectProject } from "../project/detect.js";
@@ -32,6 +33,8 @@ export interface RewindOptions {
   packageRoot?: string;
   gitRef: string;
   format: ReportFormat;
+  /** When true, skip Safe Chain and use npm/pnpm directly. */
+  noSafeChain?: boolean;
   runner?: ProcessRunner;
 }
 
@@ -46,13 +49,17 @@ export async function runRewind(options: RewindOptions): Promise<StageReport> {
     options.packageRoot
   );
   const runner = options.runner ?? defaultProcessRunner;
+  const log = getLogger();
   const project = await detectProject(packageRoot.absolute);
 
   if (!(await isGitRepo(projectRoot))) {
     throw new BeefupError(`${CliCommands.Rewind} requires a git repository`);
   }
 
-  const resolved = await resolveGitRef(options.gitRef, projectRoot);
+  const resolved = await log.timed(`resolving git ref ${options.gitRef}`, () =>
+    resolveGitRef(options.gitRef, projectRoot)
+  );
+  log.info(`resolved ${options.gitRef} to ${resolved}`);
   const extractRoot = path.join(
     beefupDir(projectRoot),
     `${BeefupSnapshots.Prior}.extract`
@@ -60,24 +67,28 @@ export async function runRewind(options: RewindOptions): Promise<StageReport> {
   await removePath(extractRoot);
 
   try {
-    await extractHistoricFile(
-      resolved,
-      gitPathFromPackageRelative(
-        packageRoot.relative,
-        HistoricRootFiles.PackageJson
-      ),
-      HistoricRootFiles.PackageJson,
-      projectRoot,
-      extractRoot,
-      true
+    await log.timed(`extracting ${HistoricRootFiles.PackageJson}`, () =>
+      extractHistoricFile(
+        resolved,
+        gitPathFromPackageRelative(
+          packageRoot.relative,
+          HistoricRootFiles.PackageJson
+        ),
+        HistoricRootFiles.PackageJson,
+        projectRoot,
+        extractRoot,
+        true
+      )
     );
-    await extractHistoricFile(
-      resolved,
-      gitPathFromPackageRelative(packageRoot.relative, project.lockfileName),
-      project.lockfileName,
-      projectRoot,
-      extractRoot,
-      true
+    await log.timed(`extracting ${project.lockfileName}`, () =>
+      extractHistoricFile(
+        resolved,
+        gitPathFromPackageRelative(packageRoot.relative, project.lockfileName),
+        project.lockfileName,
+        projectRoot,
+        extractRoot,
+        true
+      )
     );
     await extractHistoricFile(
       resolved,
@@ -99,7 +110,9 @@ export async function runRewind(options: RewindOptions): Promise<StageReport> {
       false
     );
 
-    const treePaths = await listGitTreePaths(resolved, projectRoot);
+    const treePaths = await log.timed("listing git tree", () =>
+      listGitTreePaths(resolved, projectRoot)
+    );
     for (const rel of treePaths) {
       const destRel = packageRelativeFromGitPath(packageRoot.relative, rel);
       if (
@@ -122,23 +135,28 @@ export async function runRewind(options: RewindOptions): Promise<StageReport> {
       );
     }
 
-    await snapshotWritableFiles(
-      extractRoot,
-      priorDir(projectRoot),
-      project.lockfileName
+    await log.timed("writing prior snapshot", () =>
+      snapshotWritableFiles(
+        extractRoot,
+        priorDir(projectRoot),
+        project.lockfileName
+      )
     );
     await removeStagedOutputs(projectRoot);
   } finally {
     await removePath(extractRoot);
   }
 
-  return runReport({
-    projectRoot,
-    packageRoot: packageRoot.relative,
-    format: options.format,
-    runner,
-    comparison: ReportComparisons.Applied,
-  });
+  return log.timed("generating report", () =>
+    runReport({
+      projectRoot,
+      packageRoot: packageRoot.relative,
+      format: options.format,
+      runner,
+      comparison: ReportComparisons.Applied,
+      noSafeChain: options.noSafeChain,
+    })
+  );
 }
 
 /**
@@ -159,7 +177,11 @@ async function extractHistoricFile(
         `${gitPath} was not found at ${ref}; cannot rewind`
       );
     }
+    getLogger().debug(`${gitPath} not in ${ref}; skipping`);
     return;
   }
   await writeTextFile(path.join(extractRoot, destRel), contents);
+  getLogger().debug(
+    `wrote ${destRel} (${formatBytes(Buffer.byteLength(contents))})`
+  );
 }

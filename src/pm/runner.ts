@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
 
+import { getLogger } from "../log.js";
+
 /** Captured stdout, stderr, and exit code from a child process. */
 export interface RunResult {
   stdout: string;
@@ -23,18 +25,25 @@ export const defaultProcessRunner: ProcessRunner = {
    * Spawns a binary with args in cwd and returns captured output and exit code.
    */
   async run(bin, args, cwd) {
-    return new Promise((resolve, reject) => {
-      const child = spawn(bin, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
-      const stdoutChunks: Buffer[] = [];
-      const stderrChunks: Buffer[] = [];
-      child.stdout.on("data", (chunk: Buffer) => stdoutChunks.push(chunk));
-      child.stderr.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
-      child.on("error", reject);
-      child.on("close", (code) => {
-        resolve({
-          stdout: Buffer.concat(stdoutChunks).toString("utf8"),
-          stderr: Buffer.concat(stderrChunks).toString("utf8"),
-          code: code ?? 1,
+    const log = getLogger();
+    const rendered = [bin, ...args].join(" ");
+    return log.timed(`running ${rendered}`, async () => {
+      log.debug(`$ ${rendered} (cwd ${cwd})`);
+      return new Promise<RunResult>((resolve, reject) => {
+        const child = spawn(bin, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
+        const stdoutChunks: Buffer[] = [];
+        const stderrChunks: Buffer[] = [];
+        child.stdout.on("data", (chunk: Buffer) => stdoutChunks.push(chunk));
+        child.stderr.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
+        child.on("error", reject);
+        child.on("close", (code) => {
+          const result = {
+            stdout: Buffer.concat(stdoutChunks).toString("utf8"),
+            stderr: Buffer.concat(stderrChunks).toString("utf8"),
+            code: code ?? 1,
+          };
+          log.debug(`${rendered} exited ${result.code}`);
+          resolve(result);
         });
       });
     });

@@ -8,6 +8,20 @@ Run Beefup from the project root (the git root, or `--dir`). Use `--package-root
 
 `beefup report` follows whichever snapshot exists: live vs staged after `stage`, or `.beefup/prior` vs live after accept, rewind, or revert.
 
+## Logging
+
+Progress logs go to **stderr** so the report on stdout stays clean. Default is warnings and errors only.
+
+| Option | Level | What it prints |
+| --- | --- | --- |
+| *(default)* | `warn` | `warning:` and `error:` |
+| `--quiet`, `-q` | `quiet` | `error:` only |
+| `--verbose`, `-V` | `info` | major steps with timings, plus package-manager and scanner commands |
+| `--debug` | `debug` | verbose plus git/subprocess argv, cwd, byte sizes, and exit codes |
+| `--log-level <level>` | `quiet`, `warn`, `info`, or `debug` | same as the shortcuts; last flag wins |
+
+Use `--verbose` or `--debug` when a command looks stuck (lockfile regeneration, frozen install, audit, `git show` of a large lockfile).
+
 ## Contents
 
 - [Staging](stage.md) — `beefup stage`, strategies, and project config
@@ -21,5 +35,5 @@ Run Beefup from the project root (the git root, or `--dir`). Use `--package-root
 
 - Node.js 22+
 - pnpm 11.22.0 or npm 12+
-- [Aikido Safe Chain](https://github.com/AikidoSec/safe-chain) wrapping the package manager
+- [Aikido Safe Chain](https://github.com/AikidoSec/safe-chain) wrapping the package manager (or `--no-safe-chain` to bypass)
 - A `package-lock.json` or `pnpm-lock.yaml` in the target project

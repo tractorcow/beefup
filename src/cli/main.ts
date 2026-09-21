@@ -9,11 +9,14 @@ import { runRewind } from "../commands/rewind.js";
 import { runStage } from "../commands/stage.js";
 import {
   CliCommands,
+  CliOptionFlags,
   ReportComparisons,
   StageStrategies,
 } from "../config/types.js";
 import { BeefupError } from "../errors.js";
+import { createLogger, getLogger, setLogger } from "../log.js";
 import { BEEFUP_DIR, BeefupSnapshots } from "../project/paths.js";
+import { securityFindingCountLabel } from "../report/shared.js";
 import type { StageReport } from "../report/types.js";
 import { parseCliArgs, showHelp } from "./args.js";
 
@@ -30,7 +33,7 @@ async function readVersion(): Promise<string> {
 }
 
 /**
- * Writes a stage/report result to stdout and warns if new CVEs were introduced.
+ * Writes a stage/report result to stdout and warns if new findings were introduced.
  */
 function emitReport(report: StageReport): void {
   process.stdout.write(printReport(report));
@@ -39,8 +42,8 @@ function emitReport(report: StageReport): void {
       report.comparison === ReportComparisons.Applied
         ? `${BEEFUP_DIR}/${BeefupSnapshots.Prior} vs the live tree`
         : `${BEEFUP_DIR}/${BeefupSnapshots.Staged} before accept`;
-    console.error(
-      `warning: ${report.security.introduced.length} CVE(s) introduced; review ${review}`
+    getLogger().warn(
+      `${securityFindingCountLabel(report.security.introduced.length)} introduced; review ${review}`
     );
   }
 }
@@ -51,6 +54,7 @@ function emitReport(report: StageReport): void {
 export async function main(argv = process.argv): Promise<number> {
   try {
     const args = parseCliArgs(argv);
+    setLogger(createLogger({ level: args.logLevel }));
     if (args.version) {
       console.log(await readVersion());
       return 0;
@@ -61,6 +65,15 @@ export async function main(argv = process.argv): Promise<number> {
     }
 
     const projectRoot = args.dir ?? process.cwd();
+    const log = getLogger();
+    log.debug(
+      `${args.command} log-level=${args.logLevel} projectRoot=${projectRoot}`
+    );
+    if (args.noSafeChain) {
+      log.warn(
+        `${CliOptionFlags.NoSafeChain} suppresses Safe Chain; lockfile updates and installs run through unprotected npm/pnpm`
+      );
+    }
     if (args.command === CliCommands.Stage) {
       const report = await runStage({
         projectRoot,
@@ -68,6 +81,7 @@ export async function main(argv = process.argv): Promise<number> {
         mode: args.mode,
         strategy: args.strategy ?? StageStrategies.Worktree,
         format: args.format,
+        noSafeChain: args.noSafeChain,
       });
       emitReport(report);
       return 0;
@@ -79,6 +93,7 @@ export async function main(argv = process.argv): Promise<number> {
         mode: args.mode,
         strategy: args.strategy,
         format: args.format,
+        noSafeChain: args.noSafeChain,
       });
       emitReport(report);
       return 0;
@@ -88,12 +103,13 @@ export async function main(argv = process.argv): Promise<number> {
         projectRoot,
         packageRoot: args.packageRoot,
         format: args.format,
+        noSafeChain: args.noSafeChain,
       });
       process.stdout.write(
         `Accepted staged upgrade. Applied ${result.copied.join(", ")} and installed from the frozen lockfile (${result.packageManager}).\n`
       );
       for (const warning of result.warnings) {
-        console.error(`warning: ${warning}`);
+        getLogger().warn(warning);
       }
       return 0;
     }
@@ -102,6 +118,7 @@ export async function main(argv = process.argv): Promise<number> {
         projectRoot,
         packageRoot: args.packageRoot,
         format: args.format,
+        noSafeChain: args.noSafeChain,
       });
       process.stdout.write(
         `Reverted to ${BEEFUP_DIR}/${BeefupSnapshots.Prior}. Applied ${result.copied.join(", ")} and installed from the frozen lockfile (${result.packageManager}).\n`
@@ -114,6 +131,7 @@ export async function main(argv = process.argv): Promise<number> {
         packageRoot: args.packageRoot,
         gitRef: args.gitRef ?? "",
         format: args.format,
+        noSafeChain: args.noSafeChain,
       });
       emitReport(report);
       return 0;

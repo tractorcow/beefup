@@ -7,6 +7,7 @@ import {
   type StageStrategyName,
   type UpgradeMode,
 } from "../config/types.js";
+import { getLogger } from "../log.js";
 import { defaultProcessRunner, type ProcessRunner } from "../pm/runner.js";
 import { assertNpmVersion, resolveProtectedPm } from "../pm/safe-chain.js";
 import { regenerateLockfile } from "../pm/update.js";
@@ -26,6 +27,8 @@ export interface StageOptions {
   mode?: UpgradeMode;
   strategy: StageStrategyName;
   format: ReportFormat;
+  /** When true, skip Safe Chain and use npm/pnpm directly. */
+  noSafeChain?: boolean;
   runner?: ProcessRunner;
 }
 
@@ -40,9 +43,15 @@ export async function runStage(options: StageOptions): Promise<StageReport> {
     options.packageRoot
   );
   const runner = options.runner ?? defaultProcessRunner;
+  const log = getLogger();
   const project = await detectProject(packageRoot.absolute);
   const config = await loadConfig(packageRoot.absolute, options.mode);
-  const protectedPm = await resolveProtectedPm(project.packageManager);
+  log.info(
+    `staging ${packageRoot.relative} with ${project.packageManager} (${options.strategy}, ${config.mode})`
+  );
+  const protectedPm = await resolveProtectedPm(project.packageManager, {
+    noSafeChain: options.noSafeChain,
+  });
   if (project.packageManager === PackageManagers.Npm) {
     await assertNpmVersion(protectedPm);
   }
@@ -64,23 +73,33 @@ export async function runStage(options: StageOptions): Promise<StageReport> {
   process.on("SIGTERM", onSignal);
 
   try {
-    const workspace = await strategy.prepare();
-    await rewriteWorkspace(workspace.root, config.mode);
-    await regenerateLockfile({
-      pm: protectedPm,
-      packageManager: project.packageManager,
-      cwd: workspace.root,
-      runner,
-    });
-    await repinWorkspace(
-      workspace.root,
-      lockfilePathFor(workspace.root, project.lockfileName),
-      project.packageManager
+    const workspace = await log.timed("preparing staging workspace", () =>
+      strategy.prepare()
     );
-    await collectStagedOutputs(
-      workspace.root,
-      projectRoot,
-      project.lockfileName
+    await log.timed("rewriting version constraints", () =>
+      rewriteWorkspace(workspace.root, config.mode)
+    );
+    await log.timed("regenerating lockfile", () =>
+      regenerateLockfile({
+        pm: protectedPm,
+        packageManager: project.packageManager,
+        cwd: workspace.root,
+        runner,
+      })
+    );
+    await log.timed("re-pinning workspace", () =>
+      repinWorkspace(
+        workspace.root,
+        lockfilePathFor(workspace.root, project.lockfileName),
+        project.packageManager
+      )
+    );
+    await log.timed("collecting staged outputs", () =>
+      collectStagedOutputs(
+        workspace.root,
+        projectRoot,
+        project.lockfileName
+      )
     );
     await removePriorOutputs(projectRoot);
   } finally {
@@ -89,15 +108,18 @@ export async function runStage(options: StageOptions): Promise<StageReport> {
     await strategy.cleanup();
   }
 
-  return runReport({
-    projectRoot,
-    packageRoot: packageRoot.relative,
-    mode: config.mode,
-    strategy: options.strategy,
-    format: options.format,
-    runner,
-    comparison: ReportComparisons.Proposal,
-  });
+  return log.timed("generating report", () =>
+    runReport({
+      projectRoot,
+      packageRoot: packageRoot.relative,
+      mode: config.mode,
+      strategy: options.strategy,
+      format: options.format,
+      runner,
+      comparison: ReportComparisons.Proposal,
+      noSafeChain: options.noSafeChain,
+    })
+  );
 }
 
 export { printReport } from "./report.js";
