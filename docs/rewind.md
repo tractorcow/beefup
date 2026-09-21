@@ -7,6 +7,7 @@ beefup rewind HEAD~1
 beefup rewind v1.2.3
 beefup rewind --dir /path/to/project abcdef0
 beefup rewind --package-root ./app HEAD~1
+beefup rewind --debug --package-root ./app HEAD~1
 ```
 
 ## What it does
@@ -20,7 +21,7 @@ beefup rewind --package-root ./app HEAD~1
 
 Rewind only needs a read-only copy of historic manifests. It does not require a clean working tree.
 
-`--dir`, `--package-root`, `--format`, and `--no-safe-chain` apply. `--format` selects the human-readable file under `.beefup/report`; `report.json` is always written. Stdout is automatic colour or plain text. See [report](report.md).
+`--dir`, `--package-root`, `--format`, `--no-safe-chain`, `--quiet`, `--verbose`, `--debug`, and `--log-level` apply. `--format` selects the human-readable file under `.beefup/report`; `report.json` is always written. Stdout is automatic colour or plain text. See [report](report.md). `--verbose` / `--debug` print extract and scan progress on stderr (useful for large lockfiles).
 
 ## Failures
 

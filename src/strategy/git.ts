@@ -2,12 +2,18 @@ import { execFile as execFileCallback, spawn } from "node:child_process";
 import { promisify } from "node:util";
 
 import { BeefupError } from "../errors.js";
+import { formatBytes, formatDuration, getLogger } from "../log.js";
 import { BEEFUP_DIR } from "../project/paths.js";
 
 const execFile = promisify(execFileCallback);
 
 /** Git's generic failure exit status (missing path, invalid object, and similar). */
 const GitFailureExitCode = 128;
+
+/** Git executable Beefup invokes. */
+export const GitBins = {
+  Git: "git",
+} as const;
 
 /** Git subcommands Beefup invokes. */
 export const GitSubcommands = {
@@ -51,11 +57,25 @@ export async function runGit(
   args: string[],
   cwd: string
 ): Promise<{ stdout: string; stderr: string }> {
-  const { stdout, stderr } = await execFile("git", args, {
-    cwd,
-    encoding: "utf8",
-  });
-  return { stdout: stdout.trim(), stderr: stderr.trim() };
+  const log = getLogger();
+  const started = performance.now();
+  const rendered = `${GitBins.Git} ${args.join(" ")}`;
+  log.debug(`$ ${rendered} (cwd ${cwd})`);
+  try {
+    const { stdout, stderr } = await execFile(GitBins.Git, args, {
+      cwd,
+      encoding: "utf8",
+    });
+    log.debug(
+      `${rendered} exited 0 in ${formatDuration(performance.now() - started)}`
+    );
+    return { stdout: stdout.trim(), stderr: stderr.trim() };
+  } catch (error) {
+    log.debug(
+      `${rendered} failed in ${formatDuration(performance.now() - started)}`
+    );
+    throw error;
+  }
 }
 
 /**
@@ -117,12 +137,20 @@ export async function gitShowFile(
 /**
  * Runs git and collects full stdout/stderr with no maxBuffer limit.
  */
-function spawnGit(
+async function spawnGit(
   args: string[],
   cwd: string
 ): Promise<{ code: number | null; stdout: string; stderr: string }> {
-  return new Promise((resolve, reject) => {
-    const child = spawn("git", args, { cwd });
+  const log = getLogger();
+  const started = performance.now();
+  const rendered = `${GitBins.Git} ${args.join(" ")}`;
+  log.debug(`$ ${rendered} (cwd ${cwd})`);
+  const result = await new Promise<{
+    code: number | null;
+    stdout: string;
+    stderr: string;
+  }>((resolve, reject) => {
+    const child = spawn(GitBins.Git, args, { cwd });
     const stdoutChunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];
     child.stdout.on("data", (chunk: Buffer) => {
@@ -140,6 +168,15 @@ function spawnGit(
       });
     });
   });
+  const duration = formatDuration(performance.now() - started);
+  if (result.code === 0) {
+    log.debug(
+      `${rendered} exited 0 in ${duration} (${formatBytes(Buffer.byteLength(result.stdout))})`
+    );
+  } else {
+    log.debug(`${rendered} exited ${result.code} in ${duration}`);
+  }
+  return result;
 }
 
 /**

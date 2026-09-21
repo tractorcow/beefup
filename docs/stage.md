@@ -32,6 +32,10 @@ beefup stage --package-root ./app
 | `--package-root` | path | project root (the directory with `package.json` and the lockfile) |
 | `--format` | `html`, `markdown`, `text` | `html` (file under `.beefup/report`; `report.json` is always written) |
 | `--no-safe-chain` | flag | off (require Safe Chain; with the flag, use npm/pnpm directly) |
+| `--quiet`, `-q` | flag | off (suppress warnings) |
+| `--verbose`, `-V` | flag | off (log major steps and timings to stderr) |
+| `--debug` | flag | off (also log git and subprocess commands) |
+| `--log-level` | `quiet`, `warn`, `info`, `debug` | `warn` |
 
 `--mode` overrides project config. `same-major` rewrites pins to `^<current>`. `latest` rewrites them to `>=<current>`. After lockfile regeneration, specs are re-pinned to exact versions.
 

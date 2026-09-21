@@ -108,4 +108,5 @@ beefup report
 beefup accept
 beefup revert
 beefup rewind HEAD~1
+beefup rewind --debug HEAD~1
 ```

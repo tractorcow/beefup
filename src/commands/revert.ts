@@ -3,6 +3,7 @@ import path from "node:path";
 import { CliCommands, ReportFormats, type ReportFormat } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { pathExists } from "../fsutil.js";
+import { getLogger } from "../log.js";
 import { installFromLockfile } from "../pm/install.js";
 import { defaultProcessRunner, type ProcessRunner } from "../pm/runner.js";
 import { assertNpmVersion, resolveProtectedPm } from "../pm/safe-chain.js";
@@ -42,6 +43,7 @@ export async function runRevert(options: RevertOptions): Promise<RevertResult> {
     options.packageRoot
   );
   const runner = options.runner ?? defaultProcessRunner;
+  const log = getLogger();
   const project = await detectProject(packageRoot.absolute);
   await requirePriorUpgrade(projectRoot, project.lockfileName);
 
@@ -59,26 +61,32 @@ export async function runRevert(options: RevertOptions): Promise<RevertResult> {
     await assertNpmVersion(protectedPm);
   }
 
-  const copied = await applyPriorOutputs(
-    projectRoot,
-    packageRoot.absolute,
-    project.lockfileName
+  const copied = await log.timed("restoring prior outputs", () =>
+    applyPriorOutputs(
+      projectRoot,
+      packageRoot.absolute,
+      project.lockfileName
+    )
   );
   await removeStagedOutputs(projectRoot);
-  await installFromLockfile({
-    pm: protectedPm,
-    packageManager: project.packageManager,
-    cwd: packageRoot.absolute,
-    runner,
-  });
+  await log.timed("installing from lockfile", () =>
+    installFromLockfile({
+      pm: protectedPm,
+      packageManager: project.packageManager,
+      cwd: packageRoot.absolute,
+      runner,
+    })
+  );
 
-  await runReport({
-    projectRoot,
-    packageRoot: packageRoot.relative,
-    format: options.format ?? ReportFormats.Html,
-    runner,
-    noSafeChain: options.noSafeChain,
-  });
+  await log.timed("generating report", () =>
+    runReport({
+      projectRoot,
+      packageRoot: packageRoot.relative,
+      format: options.format ?? ReportFormats.Html,
+      runner,
+      noSafeChain: options.noSafeChain,
+    })
+  );
 
   return {
     packageManager: project.packageManager,

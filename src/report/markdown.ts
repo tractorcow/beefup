@@ -11,9 +11,11 @@ import { formatRefsMarkdown } from "../security/refs.js";
 import {
   comparisonLabel,
   comparisonPathsLine,
+  introducedSummary,
+  noIntroducedSummary,
   packageChangeCounts,
   policyIssueCount,
-  SecuritySectionIntros,
+  securitySectionIntro,
   SecuritySectionTitles,
 } from "./shared.js";
 import type { StageReport } from "./types.js";
@@ -202,11 +204,9 @@ function formatSummary(report: StageReport): string {
     `- Policy: ${policy === 0 ? "**no issues**" : `**${policy}** issue(s)`}`
   );
   if (introduced.length === 0) {
-    lines.push("- No CVEs introduced by this staged upgrade");
+    lines.push(`- ${noIntroducedSummary(report.comparison)}`);
   } else {
-    lines.push(
-      `- **Warning:** ${introduced.length} CVE(s) introduced — review before accept`
-    );
+    lines.push(`- **${introducedSummary(introduced.length, report.comparison)}**`);
   }
   return lines.join("\n");
 }
@@ -266,17 +266,17 @@ export function renderMarkdown(report: StageReport): string {
     formatSecuritySections([
       formatFindings(
         SecuritySectionTitles.Introduced,
-        SecuritySectionIntros.Introduced,
+        securitySectionIntro(SecuritySectionTitles.Introduced, report.comparison),
         report.security.introduced
       ),
       formatFindings(
         SecuritySectionTitles.Unresolved,
-        SecuritySectionIntros.Unresolved,
+        securitySectionIntro(SecuritySectionTitles.Unresolved, report.comparison),
         report.security.unresolved
       ),
       formatFindings(
         SecuritySectionTitles.Fixed,
-        SecuritySectionIntros.Fixed,
+        securitySectionIntro(SecuritySectionTitles.Fixed, report.comparison),
         report.security.fixed
       ),
     ]) || "No security findings.",

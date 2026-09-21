@@ -4,6 +4,7 @@ import { loadConfig } from "../config/load.js";
 import { CliCommands, ReportFormats, type ReportFormat } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { pathExists } from "../fsutil.js";
+import { getLogger } from "../log.js";
 import { installFromLockfile } from "../pm/install.js";
 import { defaultProcessRunner, type ProcessRunner } from "../pm/runner.js";
 import { assertNpmVersion, resolveProtectedPm } from "../pm/safe-chain.js";
@@ -47,6 +48,7 @@ export async function runAccept(options: AcceptOptions): Promise<AcceptResult> {
     options.packageRoot
   );
   const runner = options.runner ?? defaultProcessRunner;
+  const log = getLogger();
   const project = await detectProject(packageRoot.absolute);
   const staged = await requireStagedUpgrade(projectRoot, project.lockfileName);
 
@@ -73,31 +75,39 @@ export async function runAccept(options: AcceptOptions): Promise<AcceptResult> {
   );
   assertPolicy(policy);
 
-  await collectPriorOutputs(
-    packageRoot.absolute,
-    projectRoot,
-    project.lockfileName
+  await log.timed("saving prior snapshot", () =>
+    collectPriorOutputs(
+      packageRoot.absolute,
+      projectRoot,
+      project.lockfileName
+    )
   );
-  const copied = await applyStagedOutputs(
-    projectRoot,
-    packageRoot.absolute,
-    project.lockfileName
+  const copied = await log.timed("applying staged outputs", () =>
+    applyStagedOutputs(
+      projectRoot,
+      packageRoot.absolute,
+      project.lockfileName
+    )
   );
   await removeStagedOutputs(projectRoot);
-  await installFromLockfile({
-    pm: protectedPm,
-    packageManager: project.packageManager,
-    cwd: packageRoot.absolute,
-    runner,
-  });
+  await log.timed("installing from lockfile", () =>
+    installFromLockfile({
+      pm: protectedPm,
+      packageManager: project.packageManager,
+      cwd: packageRoot.absolute,
+      runner,
+    })
+  );
 
-  await runReport({
-    projectRoot,
-    packageRoot: packageRoot.relative,
-    format: options.format ?? ReportFormats.Html,
-    runner,
-    noSafeChain: options.noSafeChain,
-  });
+  await log.timed("generating report", () =>
+    runReport({
+      projectRoot,
+      packageRoot: packageRoot.relative,
+      format: options.format ?? ReportFormats.Html,
+      runner,
+      noSafeChain: options.noSafeChain,
+    })
+  );
 
   return {
     packageManager: project.packageManager,

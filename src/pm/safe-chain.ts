@@ -3,6 +3,7 @@ import { promisify } from "node:util";
 
 import { CliOptionFlags } from "../config/types.js";
 import { BeefupError } from "../errors.js";
+import { getLogger } from "../log.js";
 import { PackageManagers, type PackageManager } from "../project/types.js";
 
 const execFile = promisify(execFileCallback);
@@ -39,6 +40,7 @@ export function aikidoBinName(packageManager: PackageManager): string {
  * Resolves an executable on PATH via `which`, or undefined when missing.
  */
 async function which(bin: string): Promise<string | undefined> {
+  getLogger().debug(`which ${bin}`);
   try {
     const { stdout } = await execFile("which", [bin], { encoding: "utf8" });
     const resolved = stdout.trim();
@@ -57,16 +59,20 @@ export async function resolveProtectedPm(
   options: ResolveProtectedPmOptions = {}
 ): Promise<ProtectedPm> {
   if (options.noSafeChain) {
-    return resolveRawPm(packageManager);
+    const pm = await resolveRawPm(packageManager);
+    getLogger().debug(`using unprotected ${pm.bin}`);
+    return pm;
   }
 
   const aikido = await which(aikidoBinName(packageManager));
   if (aikido) {
+    getLogger().info(`using ${aikido}`);
     return { bin: aikido, prefixArgs: [] };
   }
 
   const safeChain = await which(SafeChainBins.Wrapper);
   if (safeChain) {
+    getLogger().info(`using ${safeChain} ${packageManager}`);
     return { bin: safeChain, prefixArgs: [packageManager] };
   }
 

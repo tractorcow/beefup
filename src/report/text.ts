@@ -5,7 +5,13 @@ import { PackageChangeTypes, type PackageChange } from "../diff/types.js";
 import type { FindingSeverity, SecurityFinding } from "../security/classify.js";
 import { formatRefsText } from "../security/refs.js";
 import { Ansi, ansiForSeverity, paint } from "./ansi.js";
-import { comparisonLabel, packageChangeCounts, policyIssueCount } from "./shared.js";
+import {
+  comparisonLabel,
+  introducedSummary,
+  noIntroducedSummary,
+  packageChangeCounts,
+  policyIssueCount,
+} from "./shared.js";
 import type { StageReport } from "./types.js";
 
 export interface TextRenderOptions {
@@ -158,12 +164,12 @@ export function renderText(
   );
 
   if (introduced.length === 0) {
-    parts.push("No CVEs introduced by this staged upgrade");
+    parts.push(noIntroducedSummary(report.comparison));
   } else {
     parts.push(
       paint(
         [Ansi.Bold, Ansi.Red],
-        `Warning: ${introduced.length} CVE(s) introduced — review before accept`,
+        introducedSummary(introduced.length, report.comparison),
         color
       )
     );

@@ -1,12 +1,16 @@
 import {
   CliCommands,
   CliOptionFlags,
+  DefaultLogLevel,
+  isLogLevel,
   isReportFormat,
   isStageStrategy,
   isUpgradeMode,
+  LogLevels,
   ReportFormats,
   StageStrategies,
   UpgradeModes,
+  type LogLevel,
   type ReportFormat,
   type StageStrategyName,
   type UpgradeMode,
@@ -24,6 +28,8 @@ export interface CliArgs {
   format: ReportFormat;
   /** When true, skip Safe Chain and use npm/pnpm directly. */
   noSafeChain: boolean;
+  /** Stderr verbosity; default is warnings and errors only. */
+  logLevel: LogLevel;
   help: boolean;
   version: boolean;
 }
@@ -35,6 +41,7 @@ export function parseCliArgs(argv: string[]): CliArgs {
   const args: CliArgs = {
     format: ReportFormats.Html,
     noSafeChain: false,
+    logLevel: DefaultLogLevel,
     help: false,
     version: false,
   };
@@ -80,6 +87,27 @@ export function parseCliArgs(argv: string[]): CliArgs {
       args.format = value;
     } else if (arg === CliOptionFlags.NoSafeChain) {
       args.noSafeChain = true;
+    } else if (
+      arg === CliOptionFlags.Quiet ||
+      arg === CliOptionFlags.QuietShort
+    ) {
+      args.logLevel = LogLevels.Quiet;
+    } else if (
+      arg === CliOptionFlags.Verbose ||
+      arg === CliOptionFlags.VerboseShort
+    ) {
+      args.logLevel = LogLevels.Info;
+    } else if (arg === CliOptionFlags.Debug) {
+      args.logLevel = LogLevels.Debug;
+    } else if (arg === CliOptionFlags.LogLevel) {
+      const value = argv[i + 1];
+      i += 1;
+      if (!isLogLevel(value)) {
+        throw new BeefupError(
+          `invalid ${CliOptionFlags.LogLevel} ${value}; use ${Object.values(LogLevels).join(", ")}`
+        );
+      }
+      args.logLevel = value;
     } else if (!arg.startsWith("-") && !args.command) {
       args.command = arg;
     } else if (
@@ -130,6 +158,10 @@ OPTIONS:
     ${CliOptionFlags.PackageRoot} <path>       Directory with package.json and lockfile (default: project root)
     ${CliOptionFlags.Format} ${Object.values(ReportFormats).join("|")}  Human-readable file under ${BEEFUP_DIR}/report (default: ${ReportFormats.Html}; ${ReportFileNames.Json} is always written)
     ${CliOptionFlags.NoSafeChain}            Bypass Safe Chain and use npm/pnpm directly
+    ${CliOptionFlags.Quiet}, ${CliOptionFlags.QuietShort}                Suppress warnings
+    ${CliOptionFlags.Verbose}, ${CliOptionFlags.VerboseShort}            Log major steps to stderr
+    ${CliOptionFlags.Debug}                   Log steps, timings, and subprocess commands
+    ${CliOptionFlags.LogLevel} ${Object.values(LogLevels).join("|")}  Log verbosity (default: ${DefaultLogLevel})
     -h, --help                   Show this help
     -v, --version                Show version
 
@@ -143,5 +175,6 @@ EXAMPLES:
     beefup ${CliCommands.Accept}
     beefup ${CliCommands.Revert}
     beefup ${CliCommands.Rewind} HEAD~1
+    beefup ${CliCommands.Rewind} ${CliOptionFlags.Debug} HEAD~1
 `;
 }

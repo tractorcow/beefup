@@ -10,7 +10,7 @@ export const SecuritySectionTitles = {
   Fixed: "Fixed",
 } as const;
 
-/** Short blurbs explaining each security section under its heading. */
+/** Short blurbs explaining each security section under its heading (proposal copy). */
 export const SecuritySectionIntros = {
   Introduced:
     "New findings that appear only after this staged upgrade. Review before accept — these are regressions.",
@@ -19,6 +19,63 @@ export const SecuritySectionIntros = {
   Fixed:
     "Findings present before the upgrade that no longer appear afterward. Cleared by this staged proposal.",
 } as const;
+
+/** Applied-report blurbs for the same security sections. */
+const AppliedSecuritySectionIntros = {
+  Introduced:
+    "New findings that appear only on the live tree versus prior. They were not present in the historic lockfile.",
+  Unresolved:
+    "Findings still present on the live tree. They were not cleared relative to prior and remain open risk.",
+  Fixed:
+    "Findings present in the prior lockfile that no longer appear on the live tree.",
+} as const;
+
+/**
+ * Returns the intro blurb for a security section, using applied wording after
+ * accept/rewind/revert and proposal wording after stage.
+ */
+export function securitySectionIntro(
+  section: (typeof SecuritySectionTitles)[keyof typeof SecuritySectionTitles],
+  comparison: ReportComparison | undefined
+): string {
+  const intros =
+    comparison === ReportComparisons.Applied
+      ? AppliedSecuritySectionIntros
+      : SecuritySectionIntros;
+  return intros[section];
+}
+
+/**
+ * Summary line when the after tree has no findings that were absent before.
+ */
+export function noIntroducedSummary(
+  comparison: ReportComparison | undefined
+): string {
+  if (comparison === ReportComparisons.Applied) {
+    return "No new security findings in the live tree versus prior";
+  }
+  return "No new security findings introduced by this staged upgrade";
+}
+
+/**
+ * Warning summary when findings appear only on the after tree.
+ */
+export function introducedSummary(
+  count: number,
+  comparison: ReportComparison | undefined
+): string {
+  if (comparison === ReportComparisons.Applied) {
+    return `Warning: ${securityFindingCountLabel(count)} introduced versus prior`;
+  }
+  return `Warning: ${securityFindingCountLabel(count)} introduced — review before accept`;
+}
+
+/**
+ * Returns a count plus "security finding(s)" for summary and stderr warnings.
+ */
+export function securityFindingCountLabel(count: number): string {
+  return count === 1 ? "1 security finding" : `${count} security findings`;
+}
 
 /**
  * Counts package changes across dependencies and devDependencies.

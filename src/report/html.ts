@@ -8,9 +8,11 @@ import { META_VULN_TITLE } from "../security/npm-audit.js";
 import {
   comparisonLabel,
   comparisonPathsLine,
+  introducedSummary,
+  noIntroducedSummary,
   packageChangeCounts,
   policyIssueCount,
-  SecuritySectionIntros,
+  securitySectionIntro,
   SecuritySectionTitles,
 } from "./shared.js";
 import type { StageReport } from "./types.js";
@@ -193,10 +195,10 @@ function formatSummary(report: StageReport): string {
     `<li>Policy: ${policy === 0 ? "<strong>no issues</strong>" : `<strong>${policy}</strong> issue(s)`}</li>`
   );
   if (introduced.length === 0) {
-    items.push("<li>No CVEs introduced by this staged upgrade</li>");
+    items.push(`<li>${escapeHtml(noIntroducedSummary(report.comparison))}</li>`);
   } else {
     items.push(
-      `<li class="warn">Warning: ${introduced.length} CVE(s) introduced — review before accept</li>`
+      `<li class="warn">${escapeHtml(introducedSummary(introduced.length, report.comparison))}</li>`
     );
   }
   return `<section><h2>Summary</h2><ul>${items.join("")}</ul></section>`;
@@ -280,19 +282,19 @@ export function renderHtml(report: StageReport): string {
   const security = [
     formatFindings(
       SecuritySectionTitles.Introduced,
-      SecuritySectionIntros.Introduced,
+      securitySectionIntro(SecuritySectionTitles.Introduced, report.comparison),
       report.security.introduced,
       "introduced"
     ),
     formatFindings(
       SecuritySectionTitles.Unresolved,
-      SecuritySectionIntros.Unresolved,
+      securitySectionIntro(SecuritySectionTitles.Unresolved, report.comparison),
       report.security.unresolved,
       "unresolved"
     ),
     formatFindings(
       SecuritySectionTitles.Fixed,
-      SecuritySectionIntros.Fixed,
+      securitySectionIntro(SecuritySectionTitles.Fixed, report.comparison),
       report.security.fixed,
       "fixed"
     ),

@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   CliCommands,
   CliOptionFlags,
+  LogLevels,
   ReportFormats,
   StageStrategies,
   UpgradeModes,
@@ -19,6 +20,7 @@ describe("parseCliArgs", () => {
     assert.equal(args.format, ReportFormats.Html);
     assert.equal(args.mode, undefined);
     assert.equal(args.noSafeChain, false);
+    assert.equal(args.logLevel, LogLevels.Warn);
   });
 
   it("parses --no-safe-chain", () => {
@@ -149,6 +151,80 @@ describe("parseCliArgs", () => {
 
   it("lists --no-safe-chain in help text", () => {
     assert.match(showHelp(), new RegExp(CliOptionFlags.NoSafeChain));
+  });
+
+  it("parses quiet, verbose, debug, and log-level", () => {
+    assert.equal(
+      parseCliArgs([
+        "node",
+        "beefup",
+        CliCommands.Stage,
+        CliOptionFlags.Quiet,
+      ]).logLevel,
+      LogLevels.Quiet
+    );
+    assert.equal(
+      parseCliArgs([
+        "node",
+        "beefup",
+        CliCommands.Stage,
+        CliOptionFlags.VerboseShort,
+      ]).logLevel,
+      LogLevels.Info
+    );
+    assert.equal(
+      parseCliArgs([
+        "node",
+        "beefup",
+        CliCommands.Stage,
+        CliOptionFlags.Debug,
+      ]).logLevel,
+      LogLevels.Debug
+    );
+    assert.equal(
+      parseCliArgs([
+        "node",
+        "beefup",
+        CliCommands.Stage,
+        CliOptionFlags.LogLevel,
+        LogLevels.Info,
+      ]).logLevel,
+      LogLevels.Info
+    );
+  });
+
+  it("lets the last verbosity flag win", () => {
+    const args = parseCliArgs([
+      "node",
+      "beefup",
+      CliCommands.Stage,
+      CliOptionFlags.Quiet,
+      CliOptionFlags.Debug,
+      CliOptionFlags.Verbose,
+    ]);
+    assert.equal(args.logLevel, LogLevels.Info);
+  });
+
+  it("rejects an invalid log-level", () => {
+    assert.throws(
+      () =>
+        parseCliArgs([
+          "node",
+          "beefup",
+          CliCommands.Stage,
+          CliOptionFlags.LogLevel,
+          "trace",
+        ]),
+      BeefupError
+    );
+  });
+
+  it("lists verbosity flags in help text", () => {
+    const help = showHelp();
+    assert.match(help, new RegExp(CliOptionFlags.Quiet));
+    assert.match(help, new RegExp(CliOptionFlags.Verbose));
+    assert.match(help, new RegExp(CliOptionFlags.Debug));
+    assert.match(help, new RegExp(CliOptionFlags.LogLevel));
   });
 
   it("lists html markdown and text report formats in help", () => {

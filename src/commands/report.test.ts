@@ -269,6 +269,8 @@ describe("runReport", () => {
     assert.equal(unresolvedIdx, -1);
     assert.equal(fixedIdx, -1);
     assert.match(markdown, /regressions/);
+    assert.match(markdown, /2 security findings introduced — review before accept/);
+    assert.doesNotMatch(markdown, /CVE\(s\)/);
     assert.doesNotMatch(markdown, /remain open risk/);
     assert.match(markdown, /\| Severity \| Title \| References \| Package \|/);
     assert.doesNotMatch(markdown, /\| Source \|/);
@@ -331,6 +333,41 @@ describe("runReport", () => {
     assert.doesNotMatch(injected, /<script>alert/);
     assert.match(injected, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
     assert.match(injected, /pkg&quot;onclick/);
+  });
+
+  it("uses applied wording for prior-vs-live reports", () => {
+    const report: StageReport = {
+      mode: UpgradeModes.SameMajor,
+      strategy: StageStrategies.Worktree,
+      packageManager: PackageManagers.Npm,
+      comparison: ReportComparisons.Applied,
+      generatedAt: "2026-08-24T00:00:00.000Z",
+      beefupVersion: "0.1.0",
+      diff: { dependencies: [], devDependencies: [] },
+      ranges: [],
+      overrides: [],
+      alignment: [],
+      security: {
+        fixed: [],
+        introduced: [
+          {
+            id: "CVE-1",
+            refs: [],
+            packageName: "leftpad",
+            severity: FindingSeverities.High,
+            source: SecuritySources.NpmAudit,
+            title: "example",
+          },
+        ],
+        unresolved: [],
+      },
+      warnings: [],
+    };
+    const markdown = renderMarkdown(report);
+    assert.match(markdown, /1 security finding introduced versus prior/);
+    assert.doesNotMatch(markdown, /review before accept/);
+    assert.doesNotMatch(markdown, /staged upgrade/);
+    assert.match(markdown, /historic lockfile/);
   });
 
   it("compares prior vs live when only a prior snapshot exists", async () => {

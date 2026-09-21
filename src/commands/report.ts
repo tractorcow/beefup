@@ -19,6 +19,7 @@ import { annotatePackageChanges, diffResolutions } from "../diff/diff.js";
 import { BeefupError } from "../errors.js";
 import { pathExists, readJsonFile, removePath } from "../fsutil.js";
 import { resolveLockfile } from "../lockfile/resolve.js";
+import { getLogger } from "../log.js";
 import { defaultProcessRunner, type ProcessRunner } from "../pm/runner.js";
 import { assertNpmVersion, resolveProtectedPm } from "../pm/safe-chain.js";
 import { assertPolicy, evaluatePolicy } from "../policy/evaluate.js";
@@ -117,6 +118,7 @@ export async function runReport(options: ReportOptions): Promise<StageReport> {
     options.packageRoot
   );
   const runner = options.runner ?? defaultProcessRunner;
+  const log = getLogger();
   const project = await detectProject(packageRoot.absolute);
   const reports = reportDir(projectRoot);
   const trees = await resolveReportTrees(
@@ -124,6 +126,9 @@ export async function runReport(options: ReportOptions): Promise<StageReport> {
     packageRoot.absolute,
     project.lockfileName,
     options.comparison
+  );
+  log.info(
+    `report ${trees.comparison} for ${packageRoot.relative} (${project.packageManager})`
   );
 
   const previous = await readPreviousReport(reports);
@@ -145,10 +150,25 @@ export async function runReport(options: ReportOptions): Promise<StageReport> {
 
   const beforeLock = path.join(trees.beforeRoot, project.lockfileName);
   const afterLock = path.join(trees.afterRoot, project.lockfileName);
-  const before = await resolveLockfile(beforeLock, project.packageManager);
-  const after = await resolveLockfile(afterLock, project.packageManager);
-  const fromBefore = await collectDirectDependencyNames(trees.beforeRoot);
-  const fromAfter = await collectDirectDependencyNames(trees.afterRoot);
+  const { before, after, fromBefore, fromAfter } = await log.timed(
+    "resolving lockfiles",
+    async () => {
+      const resolvedBefore = await resolveLockfile(
+        beforeLock,
+        project.packageManager
+      );
+      const resolvedAfter = await resolveLockfile(
+        afterLock,
+        project.packageManager
+      );
+      return {
+        before: resolvedBefore,
+        after: resolvedAfter,
+        fromBefore: await collectDirectDependencyNames(trees.beforeRoot),
+        fromAfter: await collectDirectDependencyNames(trees.afterRoot),
+      };
+    }
+  );
   const directNames = new Set([...fromBefore.directNames, ...fromAfter.directNames]);
   const optionalDeclaredNames = new Set([
     ...fromBefore.optionalDeclaredNames,
@@ -160,27 +180,33 @@ export async function runReport(options: ReportOptions): Promise<StageReport> {
     before,
     after,
   });
-  const policy = await evaluatePolicy(
-    trees.afterRoot,
-    project.packageManager,
-    project.lockfileName,
-    config
+  const policy = await log.timed("evaluating policy", () =>
+    evaluatePolicy(
+      trees.afterRoot,
+      project.packageManager,
+      project.lockfileName,
+      config
+    )
   );
 
-  const beforeFindings = await scanProject({
-    root: trees.beforeRoot,
-    packageManager: project.packageManager,
-    pmBin: protectedPm.bin,
-    prefixArgs: protectedPm.prefixArgs,
-    runner,
-  });
-  const afterFindings = await scanProject({
-    root: trees.afterRoot,
-    packageManager: project.packageManager,
-    pmBin: protectedPm.bin,
-    prefixArgs: protectedPm.prefixArgs,
-    runner,
-  });
+  const beforeFindings = await log.timed("scanning before tree", () =>
+    scanProject({
+      root: trees.beforeRoot,
+      packageManager: project.packageManager,
+      pmBin: protectedPm.bin,
+      prefixArgs: protectedPm.prefixArgs,
+      runner,
+    })
+  );
+  const afterFindings = await log.timed("scanning after tree", () =>
+    scanProject({
+      root: trees.afterRoot,
+      packageManager: project.packageManager,
+      pmBin: protectedPm.bin,
+      prefixArgs: protectedPm.prefixArgs,
+      runner,
+    })
+  );
   const security = classifyFindings(beforeFindings, afterFindings);
 
   const report: StageReport = {
@@ -199,23 +225,25 @@ export async function runReport(options: ReportOptions): Promise<StageReport> {
     warnings: policy.warnings,
   };
 
-  await mkdir(reports, { recursive: true });
-  const humanFile = DiskReportFileByFormat[options.format];
-  for (const name of HumanReportFileNames) {
-    if (name !== humanFile) {
-      await removePath(path.join(reports, name));
+  await log.timed("writing report files", async () => {
+    await mkdir(reports, { recursive: true });
+    const humanFile = DiskReportFileByFormat[options.format];
+    for (const name of HumanReportFileNames) {
+      if (name !== humanFile) {
+        await removePath(path.join(reports, name));
+      }
     }
-  }
-  await writeFile(
-    path.join(reports, humanFile),
-    renderDiskReport(report, options.format),
-    "utf8"
-  );
-  await writeFile(
-    path.join(reports, ReportFileNames.Json),
-    `${JSON.stringify(report, null, 2)}\n`,
-    "utf8"
-  );
+    await writeFile(
+      path.join(reports, humanFile),
+      renderDiskReport(report, options.format),
+      "utf8"
+    );
+    await writeFile(
+      path.join(reports, ReportFileNames.Json),
+      `${JSON.stringify(report, null, 2)}\n`,
+      "utf8"
+    );
+  });
 
   assertPolicy(policy);
   return report;

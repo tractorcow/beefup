@@ -30,6 +30,10 @@ There is no policy gate: prior was previously live. Scripts may run, same as acc
 | `--package-root` | path | project root, or the value stored in the last report |
 | `--format` | `html`, `markdown`, `text` | `html` (file under `.beefup/report`) |
 | `--no-safe-chain` | flag | off (require Safe Chain; with the flag, use npm/pnpm directly) |
+| `--quiet`, `-q` | flag | off (suppress warnings) |
+| `--verbose`, `-V` | flag | off (log major steps and timings to stderr) |
+| `--debug` | flag | off (also log git and subprocess commands) |
+| `--log-level` | `quiet`, `warn`, `info`, `debug` | `warn` |
 
 `--mode` and `--strategy` are ignored. `--format` applies to the report written after revert.
 
