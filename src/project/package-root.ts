@@ -85,19 +85,38 @@ export async function resolveCommandPackageRoots(options: {
       configDir,
       asPackageRootList(repoConfig.packageRoot)
     );
-    const matching = packageRoots.filter(
-      (root) => path.resolve(root.absolute) === startDir
-    );
-    if (matching.length > 0) {
-      return { projectRoot: configDir, packageRoots: matching };
-    }
-    return { projectRoot: configDir, packageRoots };
+    return {
+      projectRoot: configDir,
+      packageRoots: selectPackageRootsForStartDir(
+        configDir,
+        startDir,
+        packageRoots
+      ),
+    };
   }
 
   return {
     projectRoot: startDir,
     packageRoots: [resolvePackageRoot(startDir, DefaultPackageRoot)],
   };
+}
+
+/**
+ * When the user is inside a nested configured package, run only that root.
+ * At the config/git root, run the full list even if `"."` is a listed root.
+ */
+function selectPackageRootsForStartDir(
+  configDir: string,
+  startDir: string,
+  packageRoots: ResolvedPackageRoot[]
+): ResolvedPackageRoot[] {
+  if (path.resolve(startDir) === path.resolve(configDir)) {
+    return packageRoots;
+  }
+  const matching = packageRoots.filter(
+    (root) => path.resolve(root.absolute) === startDir
+  );
+  return matching.length > 0 ? matching : packageRoots;
 }
 
 /**

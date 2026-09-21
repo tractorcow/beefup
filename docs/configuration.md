@@ -62,7 +62,7 @@ Which roots a command runs:
 
 If `packageRoot` is a list, every command (`stage`, `report`, `accept`, `revert`, `rewind`) runs for each root in one process, sequentially. Each root keeps its own snapshot and report. A failure in one root does not skip the rest; the process exits `1` if any root failed.
 
-If you `cd` into one of the configured package roots (or pass `--dir` there), Beefup runs **only that** root.
+If you `cd` into a **nested** configured package (or pass `--dir` there), Beefup runs **only that** root. Running from the git root always uses the full `packageRoot` list, even when the list includes `"."`.
 
 A nested package’s own `packageRoot` field is valid schema but does not re-pick roots after that package is already selected.
 

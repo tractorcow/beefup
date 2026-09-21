@@ -190,6 +190,25 @@ describe("resolveCommandPackageRoots", () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it("runs every configured root from the repo root even when '.' is listed", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-roots-dot-"));
+    try {
+      await seedLockfilePackage(dir, "root");
+      await seedLockfilePackage(path.join(dir, "shared"), "shared");
+      await seedLockfilePackage(path.join(dir, "lambdas", "api"), "api");
+      await writeJsonFile(path.join(dir, BeefupConfigFileName), {
+        packageRoot: [DefaultPackageRoot, "shared", "lambdas/*"],
+      });
+      const resolved = await resolveCommandPackageRoots({ startDir: dir });
+      assert.deepEqual(
+        resolved.packageRoots.map((root) => root.relative),
+        [DefaultPackageRoot, "shared", "lambdas/api"]
+      );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("git package paths", () => {
