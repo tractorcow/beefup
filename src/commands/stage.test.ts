@@ -12,7 +12,7 @@ import { ReportFormats, StageStrategies } from "../config/types.js";
 import { pathExists, readJsonFile, writeJsonFile } from "../fsutil.js";
 import type { ProcessRunner } from "../pm/runner.js";
 import type { PackageJson } from "../project/package-json.js";
-import { priorDir } from "../project/paths.js";
+import { BEEFUP_DIR, priorDir } from "../project/paths.js";
 
 const execFile = promisify(execFileCallback);
 
@@ -110,7 +110,7 @@ describe("runStage", () => {
     });
   });
 
-  it("stages a nested package-root into .beefup/staged without the app/ prefix", async () => {
+  it("stages a nested package-root into that package's .beefup/staged", async () => {
     await withSafeChainStubs(async () => {
       const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-stage-pkg-"));
       await mkdir(path.join(dir, "app"), { recursive: true });
@@ -133,12 +133,12 @@ describe("runStage", () => {
           path.join(dir, "app", "package.json")
         );
         const staged = await readJsonFile<PackageJson>(
-          path.join(dir, ".beefup", "staged", "package.json")
+          path.join(dir, "app", ".beefup", "staged", "package.json")
         );
         assert.equal(live.dependencies?.leftpad, "1.0.0");
         assert.equal(staged.dependencies?.leftpad, "1.3.0");
         assert.equal(
-          await pathExists(path.join(dir, ".beefup", "staged", "app", "package.json")),
+          await pathExists(path.join(dir, ".beefup", "staged", "package.json")),
           false
         );
       } finally {
@@ -190,6 +190,47 @@ describe("runStage", () => {
         );
         assert.equal(live.dependencies?.leftpad, "1.0.0");
         assert.equal(staged.dependencies?.leftpad, "1.3.0");
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  it("keeps staged snapshots co-located so two package roots do not clobber each other", async () => {
+    await withSafeChainStubs(async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-stage-multi-"));
+      await mkdir(path.join(dir, "apps", "web"), { recursive: true });
+      await mkdir(path.join(dir, "apps", "api"), { recursive: true });
+      await seedPnpmProject(path.join(dir, "apps", "web"));
+      await seedPnpmProject(path.join(dir, "apps", "api"));
+      try {
+        await runStage({
+          projectRoot: dir,
+          packageRoot: "apps/web",
+          strategy: StageStrategies.Inplace,
+          format: ReportFormats.Text,
+          runner,
+        });
+        await runStage({
+          projectRoot: dir,
+          packageRoot: "apps/api",
+          strategy: StageStrategies.Inplace,
+          format: ReportFormats.Text,
+          runner,
+        });
+        assert.equal(
+          await pathExists(
+            path.join(dir, "apps", "web", BEEFUP_DIR, "staged", "package.json")
+          ),
+          true
+        );
+        assert.equal(
+          await pathExists(
+            path.join(dir, "apps", "api", BEEFUP_DIR, "staged", "package.json")
+          ),
+          true
+        );
+        assert.equal(await pathExists(path.join(dir, BEEFUP_DIR)), false);
       } finally {
         await rm(dir, { recursive: true, force: true });
       }

@@ -9,11 +9,11 @@ beefup report --dir /path/to/project
 beefup report --package-root ./app
 ```
 
-`stage`, `accept`, `revert`, and `rewind` already write a report when they finish. Use this command to refresh `.beefup/report` (and stdout) after changing scanners or policy, without proposing or applying another upgrade.
+`stage`, `accept`, `revert`, and `rewind` already write a report when they finish. Use this command to refresh `<package>/.beefup/report` (and stdout) after changing scanners or policy, without proposing or applying another upgrade.
 
 ## Comparison context
 
-Only one of `.beefup/staged` and `.beefup/prior` exists after a successful command. Report follows that snapshot:
+Only one of `.beefup/staged` and `.beefup/prior` exists after a successful command (in that package root). Report follows that snapshot:
 
 | Snapshot | Context | Compared trees |
 | --- | --- | --- |
@@ -38,7 +38,7 @@ Proposal reports appear after `stage`. Applied reports appear after `accept`, `r
 | Option | Values | Default |
 | --- | --- | --- |
 | `--dir` | path | current working directory |
-| `--package-root` | path | project root, or the value stored in the last `report.json` |
+| `--package-root` | path | project root, or `packageRoot` in project config (repeatable) |
 | `--format` | `html`, `markdown`, `text` | `html` (file under `.beefup/report`; `report.json` is always written) |
 | `--mode` | `same-major`, `latest` | last report, else `same-major` / project config |
 | `--strategy` | `worktree`, `inplace` | last report, else `worktree` |
@@ -48,7 +48,7 @@ Proposal reports appear after `stage`. Applied reports appear after `accept`, `r
 | `--debug` | flag | off (also log git and subprocess commands) |
 | `--log-level` | `quiet`, `warn`, `info`, `debug` | `warn` |
 
-`--format` selects only the human-readable file. It does not change stdout. `--mode` and `--strategy` are recorded on the report for later runs. They do not re-run the upgrade. `--package-root` is used when set; otherwise report reuses the path stored in `report.json`.
+`--format` selects only the human-readable file. It does not change stdout. `--mode` and `--strategy` are recorded on the report for later runs. They do not re-run the upgrade. `--package-root` is used when set; otherwise Beefup uses config `packageRoot` or `.`. See [configuration](configuration.md).
 
 ## Output
 

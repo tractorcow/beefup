@@ -38,14 +38,18 @@ export interface StageOptions {
  */
 export async function runStage(options: StageOptions): Promise<StageReport> {
   const projectRoot = path.resolve(options.projectRoot);
-  const packageRoot = await resolveCommandPackageRoot(
+  const packageRoot = resolveCommandPackageRoot(
     projectRoot,
     options.packageRoot
   );
   const runner = options.runner ?? defaultProcessRunner;
   const log = getLogger();
   const project = await detectProject(packageRoot.absolute);
-  const config = await loadConfig(packageRoot.absolute, options.mode);
+  const config = await loadConfig(
+    projectRoot,
+    packageRoot.absolute,
+    options.mode
+  );
   log.info(
     `staging ${packageRoot.relative} with ${project.packageManager} (${options.strategy}, ${config.mode})`
   );
@@ -97,11 +101,11 @@ export async function runStage(options: StageOptions): Promise<StageReport> {
     await log.timed("collecting staged outputs", () =>
       collectStagedOutputs(
         workspace.root,
-        projectRoot,
+        packageRoot.absolute,
         project.lockfileName
       )
     );
-    await removePriorOutputs(projectRoot);
+    await removePriorOutputs(packageRoot.absolute);
   } finally {
     process.off("SIGINT", onSignal);
     process.off("SIGTERM", onSignal);

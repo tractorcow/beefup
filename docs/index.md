@@ -4,7 +4,7 @@ Beefup proposes npm and pnpm dependency upgrades without applying them. It rewri
 
 The live project is left unchanged until you run `beefup accept`. After accept, `.beefup/prior` holds the previous live manifests so you can `revert` or compare the applied upgrade. `.beefup/staged` and `.beefup/prior` are mutually exclusive: `stage` deletes prior, `accept` / `rewind` / `revert` delete staged.
 
-Run Beefup from the project root (the git root, or `--dir`). Use `--package-root ./app` when `package.json` and the lockfile live in a subdirectory; `.beefup/` still sits at the project root.
+Run Beefup from the project root (the git root, or `--dir`). Use `--package-root ./app` (repeatable) or config `packageRoot` when several directories each have their own lockfile. `.beefup/` is co-located in each package root (`app/.beefup`), not at the git root. See [configuration](configuration.md).
 
 `beefup report` follows whichever snapshot exists: live vs staged after `stage`, or `.beefup/prior` vs live after accept, rewind, or revert.
 
@@ -24,6 +24,7 @@ Use `--verbose` or `--debug` when a command looks stuck (lockfile regeneration, 
 
 ## Contents
 
+- [Configuration](configuration.md) — `.beefup.json`, `package.json#beefup`, and `packageRoot`
 - [Staging](stage.md) — `beefup stage`, strategies, and project config
 - [Report](report.md) — `beefup report`, proposal vs applied comparison, formats
 - [Accept](accept.md) — `beefup accept`, applying the staged upgrade and frozen install

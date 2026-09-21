@@ -142,7 +142,21 @@ describe("parseCliArgs", () => {
       CliOptionFlags.PackageRoot,
       "./app",
     ]);
-    assert.equal(args.packageRoot, "./app");
+    assert.equal(args.packageRoot?.[0], "./app");
+    assert.equal(args.packageRoot?.length, 1);
+  });
+
+  it("parses repeated --package-root flags", () => {
+    const args = parseCliArgs([
+      "node",
+      "beefup",
+      CliCommands.Stage,
+      CliOptionFlags.PackageRoot,
+      "./app",
+      CliOptionFlags.PackageRoot,
+      "./api",
+    ]);
+    assert.deepEqual(args.packageRoot, ["./app", "./api"]);
   });
 
   it("lists package-root in help text", () => {

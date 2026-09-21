@@ -1,6 +1,7 @@
 import { execFile as execFileCallback, spawn } from "node:child_process";
 import { promisify } from "node:util";
 
+import { DefaultPackageRoot } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { formatBytes, formatDuration, getLogger } from "../log.js";
 import { BEEFUP_DIR } from "../project/paths.js";
@@ -28,6 +29,7 @@ export const GitSubcommands = {
 export const GitFlags = {
   Verify: "--verify",
   IsInsideWorkTree: "--is-inside-work-tree",
+  ShowToplevel: "--show-toplevel",
   Porcelain: "--porcelain",
   Recurse: "-r",
   NameOnly: "--name-only",
@@ -90,6 +92,21 @@ export async function isGitRepo(cwd: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Returns the git working-tree root, or undefined when cwd is not in a repo.
+ */
+export async function gitToplevel(cwd: string): Promise<string | undefined> {
+  try {
+    const { stdout } = await runGit(
+      [GitSubcommands.RevParse, GitFlags.ShowToplevel],
+      cwd
+    );
+    return stdout.length > 0 ? stdout : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -207,17 +224,25 @@ export async function listGitTreePaths(ref: string, cwd: string): Promise<string
 }
 
 /**
- * Returns true when `git status --porcelain` lists any path outside `.beefup`.
- * Beefup's own staged/report artefacts must not block a worktree re-stage.
+ * Returns true when `git status --porcelain` lists a dirty path that should
+ * block worktree staging. Nested `.beefup` directories are ignored. When
+ * `packageRelative` is a nested package, sibling paths are ignored too.
  */
-export function hasNonBeefupWorkingTreeChanges(porcelain: string): boolean {
+export function hasNonBeefupWorkingTreeChanges(
+  porcelain: string,
+  packageRelative: string = DefaultPackageRoot
+): boolean {
   for (const line of porcelain.split("\n")) {
     if (line.length < 4) {
       continue;
     }
     for (const raw of splitPorcelainPaths(line.slice(3))) {
       const normalized = normalizePorcelainPath(raw);
-      if (normalized.length > 0 && !isBeefupStatusPath(normalized)) {
+      if (
+        normalized.length > 0 &&
+        isPathInPackage(normalized, packageRelative) &&
+        !isBeefupStatusPath(normalized)
+      ) {
         return true;
       }
     }
@@ -267,10 +292,29 @@ function normalizePorcelainPath(raw: string): string {
 }
 
 /**
- * Returns true when a normalized porcelain path is `.beefup` or a file under it.
+ * Returns true when a normalized porcelain path is `.beefup` or a nested `.beefup`.
  */
 function isBeefupStatusPath(normalized: string): boolean {
   return (
-    normalized === BEEFUP_DIR || normalized.startsWith(`${BEEFUP_DIR}/`)
+    normalized === BEEFUP_DIR ||
+    normalized.startsWith(`${BEEFUP_DIR}/`) ||
+    normalized.endsWith(`/${BEEFUP_DIR}`) ||
+    normalized.includes(`/${BEEFUP_DIR}/`)
+  );
+}
+
+/**
+ * Returns true when a git-status path is inside the package being staged.
+ */
+function isPathInPackage(
+  normalized: string,
+  packageRelative: string
+): boolean {
+  if (packageRelative === DefaultPackageRoot) {
+    return true;
+  }
+  return (
+    normalized === packageRelative ||
+    normalized.startsWith(`${packageRelative}/`)
   );
 }

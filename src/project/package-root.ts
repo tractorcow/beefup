@@ -1,9 +1,15 @@
+import { glob } from "node:fs/promises";
 import path from "node:path";
 
-import { CliOptionFlags, DefaultPackageRoot } from "../config/types.js";
+import { loadConfigFromDir } from "../config/load.js";
+import {
+  BeefupConfigFileName,
+  CliOptionFlags,
+  DefaultPackageRoot,
+} from "../config/types.js";
 import { BeefupError } from "../errors.js";
-import { pathExists, readJsonFile } from "../fsutil.js";
-import { reportDir, ReportFileNames } from "./paths.js";
+import { pathExists } from "../fsutil.js";
+import { LockfileNames } from "./types.js";
 
 export interface ResolvedPackageRoot {
   /** Absolute directory that contains package.json and the lockfile. */
@@ -11,6 +17,16 @@ export interface ResolvedPackageRoot {
   /** POSIX path relative to the project root; `.` when they are the same. */
   relative: string;
 }
+
+export interface ResolvedCommandRoots {
+  /** Git / config directory used as `--dir` for git operations. */
+  projectRoot: string;
+  /** Package roots this command should run against. */
+  packageRoots: ResolvedPackageRoot[];
+}
+
+/** Characters that mark a package-root value as a glob pattern. */
+const PackageRootGlobPattern = /[*?[]/;
 
 /**
  * Resolves the directory that holds package.json and the lockfile.
@@ -33,17 +49,164 @@ export function resolvePackageRoot(
 }
 
 /**
- * Resolves the package root from a CLI argument, or the last report if omitted.
+ * Resolves the single package root for a command from an explicit relative path.
  */
-export async function resolveCommandPackageRoot(
+export function resolveCommandPackageRoot(
   projectRoot: string,
   packageRootArg?: string
-): Promise<ResolvedPackageRoot> {
-  const fromReport =
-    packageRootArg === undefined
-      ? await readPreviousPackageRoot(projectRoot)
-      : undefined;
-  return resolvePackageRoot(projectRoot, packageRootArg ?? fromReport);
+): ResolvedPackageRoot {
+  return resolvePackageRoot(projectRoot, packageRootArg);
+}
+
+/**
+ * Resolves which package roots a CLI command should run, from flags and repo config.
+ */
+export async function resolveCommandPackageRoots(options: {
+  startDir: string;
+  cliPackageRoots?: string[];
+  gitRoot?: string;
+}): Promise<ResolvedCommandRoots> {
+  const startDir = path.resolve(options.startDir);
+  const configDir = await resolveConfigDir(startDir, options.gitRoot);
+  const repoConfig = await loadConfigFromDir(configDir);
+
+  if (options.cliPackageRoots && options.cliPackageRoots.length > 0) {
+    return {
+      projectRoot: startDir,
+      packageRoots: await expandPackageRootPatterns(
+        startDir,
+        options.cliPackageRoots
+      ),
+    };
+  }
+
+  if (repoConfig.packageRoot !== undefined) {
+    const packageRoots = await expandPackageRootPatterns(
+      configDir,
+      asPackageRootList(repoConfig.packageRoot)
+    );
+    const matching = packageRoots.filter(
+      (root) => path.resolve(root.absolute) === startDir
+    );
+    if (matching.length > 0) {
+      return { projectRoot: configDir, packageRoots: matching };
+    }
+    return { projectRoot: configDir, packageRoots };
+  }
+
+  return {
+    projectRoot: startDir,
+    packageRoots: [resolvePackageRoot(startDir, DefaultPackageRoot)],
+  };
+}
+
+/**
+ * Chooses the directory that holds repo-level Beefup config.
+ */
+async function resolveConfigDir(
+  startDir: string,
+  gitRoot?: string
+): Promise<string> {
+  if (await pathExists(path.join(startDir, BeefupConfigFileName))) {
+    return startDir;
+  }
+  if (gitRoot) {
+    return path.resolve(gitRoot);
+  }
+  return startDir;
+}
+
+/**
+ * Normalizes a config `packageRoot` field to a list of patterns.
+ */
+export function asPackageRootList(
+  packageRoot: string | string[]
+): string[] {
+  return typeof packageRoot === "string" ? [packageRoot] : packageRoot;
+}
+
+/**
+ * Expands literal paths and globs into package directories that have a lockfile.
+ */
+export async function expandPackageRootPatterns(
+  projectRoot: string,
+  patterns: string[]
+): Promise<ResolvedPackageRoot[]> {
+  const seen = new Set<string>();
+  const roots: ResolvedPackageRoot[] = [];
+  for (const pattern of patterns) {
+    for (const root of await expandPackageRootPattern(projectRoot, pattern)) {
+      if (seen.has(root.relative)) {
+        continue;
+      }
+      seen.add(root.relative);
+      roots.push(root);
+    }
+  }
+  return roots;
+}
+
+/**
+ * Expands one package-root path or glob relative to `projectRoot`.
+ */
+async function expandPackageRootPattern(
+  projectRoot: string,
+  pattern: string
+): Promise<ResolvedPackageRoot[]> {
+  const normalized = pattern.replaceAll("\\", "/");
+  if (!PackageRootGlobPattern.test(normalized)) {
+    const resolved = resolvePackageRoot(projectRoot, normalized);
+    await assertPackageRootOnDisk(resolved);
+    return [resolved];
+  }
+
+  const globPattern = path.posix.join(
+    normalized.replace(/\/$/, ""),
+    "package.json"
+  );
+  const matches: ResolvedPackageRoot[] = [];
+  for await (const match of glob(globPattern, { cwd: projectRoot })) {
+    const relDir = path.posix.dirname(match.replaceAll("\\", "/"));
+    const resolved = resolvePackageRoot(
+      projectRoot,
+      relDir === DefaultPackageRoot ? DefaultPackageRoot : relDir
+    );
+    if (await hasLockfile(resolved.absolute)) {
+      matches.push(resolved);
+    }
+  }
+  if (matches.length === 0) {
+    throw new BeefupError(
+      `${CliOptionFlags.PackageRoot} glob ${pattern} matched no package roots with a lockfile`
+    );
+  }
+  return matches;
+}
+
+/**
+ * Fails when a literal package root is missing package.json or a lockfile.
+ */
+async function assertPackageRootOnDisk(
+  resolved: ResolvedPackageRoot
+): Promise<void> {
+  if (!(await pathExists(path.join(resolved.absolute, "package.json")))) {
+    throw new BeefupError(`no package.json at ${resolved.absolute}`);
+  }
+  if (!(await hasLockfile(resolved.absolute))) {
+    throw new BeefupError(
+      `no ${LockfileNames.Pnpm} or ${LockfileNames.Npm} at ${resolved.absolute}`
+    );
+  }
+}
+
+/**
+ * Returns true when `dir` contains an npm or pnpm lockfile.
+ */
+async function hasLockfile(dir: string): Promise<boolean> {
+  return (
+    (await pathExists(path.join(dir, LockfileNames.Pnpm))) ||
+    (await pathExists(path.join(dir, LockfileNames.Npm)))
+  );
 }
 
 /**
@@ -79,22 +242,4 @@ export function packageRelativeFromGitPath(
     return undefined;
   }
   return normalized.slice(prefix.length);
-}
-
-/**
- * Reads a stored package-root relative path from the last report.json, if any.
- */
-async function readPreviousPackageRoot(
-  projectRoot: string
-): Promise<string | undefined> {
-  const reportPath = path.join(reportDir(projectRoot), ReportFileNames.Json);
-  if (!(await pathExists(reportPath))) {
-    return undefined;
-  }
-  try {
-    const parsed = await readJsonFile<{ packageRoot?: unknown }>(reportPath);
-    return typeof parsed.packageRoot === "string" ? parsed.packageRoot : undefined;
-  } catch {
-    return undefined;
-  }
 }

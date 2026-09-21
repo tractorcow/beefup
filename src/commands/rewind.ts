@@ -44,7 +44,7 @@ export interface RewindOptions {
  */
 export async function runRewind(options: RewindOptions): Promise<StageReport> {
   const projectRoot = path.resolve(options.projectRoot);
-  const packageRoot = await resolveCommandPackageRoot(
+  const packageRoot = resolveCommandPackageRoot(
     projectRoot,
     options.packageRoot
   );
@@ -61,7 +61,7 @@ export async function runRewind(options: RewindOptions): Promise<StageReport> {
   );
   log.info(`resolved ${options.gitRef} to ${resolved}`);
   const extractRoot = path.join(
-    beefupDir(projectRoot),
+    beefupDir(packageRoot.absolute),
     `${BeefupSnapshots.Prior}.extract`
   );
   await removePath(extractRoot);
@@ -138,11 +138,11 @@ export async function runRewind(options: RewindOptions): Promise<StageReport> {
     await log.timed("writing prior snapshot", () =>
       snapshotWritableFiles(
         extractRoot,
-        priorDir(projectRoot),
+        priorDir(packageRoot.absolute),
         project.lockfileName
       )
     );
-    await removeStagedOutputs(projectRoot);
+    await removeStagedOutputs(packageRoot.absolute);
   } finally {
     await removePath(extractRoot);
   }

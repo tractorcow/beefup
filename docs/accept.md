@@ -10,8 +10,8 @@ beefup accept --package-root ./app
 
 ## What it does
 
-1. Detects npm or pnpm from the lockfile. Fails if `.beefup/staged` has no matching lockfile (`run beefup stage first`).
-2. Fails if `.beefup/IN_PROGRESS` exists (an in-place stage was interrupted). Re-run `beefup stage` to restore the live tree.
+1. Detects npm or pnpm from the lockfile. Fails if `<package>/.beefup/staged` has no matching lockfile (`run beefup stage first`).
+2. Fails if `<package>/.beefup/IN_PROGRESS` exists (an in-place stage was interrupted). Re-run `beefup stage` to restore the live tree.
 3. Fails if Safe Chain is not available (`aikido-npm` / `aikido-pnpm`, or `safe-chain` on `PATH`), unless `--no-safe-chain` is set.
 4. Re-checks range, override, and alignment policy on the staged files. Error-severity findings refuse the accept; warnings print to stderr.
 5. Copies live writable files into `.beefup/prior` (the baseline for `revert` and applied reports).
@@ -25,7 +25,7 @@ beefup accept --package-root ./app
 | Option | Values | Default |
 | --- | --- | --- |
 | `--dir` | path | current working directory |
-| `--package-root` | path | project root, or the value stored in the last report |
+| `--package-root` | path | project root, or `packageRoot` in project config (repeatable) |
 | `--format` | `html`, `markdown`, `text` | `html` (file under `.beefup/report`) |
 | `--no-safe-chain` | flag | off (require Safe Chain; with the flag, use npm/pnpm directly) |
 | `--quiet`, `-q` | flag | off (suppress warnings) |
@@ -33,7 +33,7 @@ beefup accept --package-root ./app
 | `--debug` | flag | off (also log git and subprocess commands) |
 | `--log-level` | `quiet`, `warn`, `info`, `debug` | `warn` |
 
-`--mode` and `--strategy` are ignored. `--package-root` is used (or taken from the last report). `--format` applies to the report written after accept.
+`--mode` and `--strategy` are ignored. `--package-root` selects one or more package roots (or is taken from config). `--format` applies to the report written after accept. See [configuration](configuration.md).
 
 ## Failures
 

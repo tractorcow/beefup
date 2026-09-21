@@ -7,7 +7,7 @@ import { describe, it } from "node:test";
 import { promisify } from "node:util";
 
 import { BeefupError } from "../errors.js";
-import { readJsonFile } from "../fsutil.js";
+import { pathExists, readJsonFile } from "../fsutil.js";
 import { BEEFUP_DIR } from "../project/paths.js";
 import { WorktreeStrategy } from "./worktree.js";
 
@@ -39,6 +39,37 @@ async function initRepo(): Promise<string> {
 }
 
 describe("WorktreeStrategy", () => {
+  it("allows dirty sibling packages when staging a nested package-root", async () => {
+    const dir = await initRepo();
+    try {
+      await mkdir(path.join(dir, "apps", "web"), { recursive: true });
+      await mkdir(path.join(dir, "apps", "api"), { recursive: true });
+      await writeFile(
+        path.join(dir, "apps", "web", "package.json"),
+        `${JSON.stringify({ name: "web" }, null, 2)}\n`
+      );
+      await git(["add", "."], dir);
+      await git(["commit", "-m", "packages"], dir);
+      await writeFile(path.join(dir, "apps", "api", "dirty.txt"), "nope\n");
+      const strategy = new WorktreeStrategy(dir, "apps/web");
+      try {
+        const workspace = await strategy.prepare();
+        assert.equal(
+          workspace.root,
+          path.join(dir, "apps", "web", BEEFUP_DIR, "work", "apps", "web")
+        );
+        assert.equal(
+          await pathExists(path.join(dir, "apps", "web", BEEFUP_DIR, "work")),
+          true
+        );
+      } finally {
+        await strategy.cleanup();
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
   it("fails when the working tree is dirty", async () => {
     const dir = await initRepo();
     try {
