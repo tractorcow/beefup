@@ -300,18 +300,43 @@ function pinBelowRequest(pinVersion: string, requestRange: string): boolean {
 }
 
 /**
+ * Returns an override map, or an empty object when the value is missing.
+ */
+function asOverrideMap(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
+
+/**
+ * Merges package.json and pnpm-workspace.yaml overrides. Workspace keys win on conflict.
+ */
+function mergeOverrideMaps(
+  pkgOverrides: Record<string, unknown>,
+  workspaceOverrides: Record<string, unknown> | undefined
+): Record<string, unknown> {
+  return {
+    ...pkgOverrides,
+    ...asOverrideMap(workspaceOverrides),
+  };
+}
+
+/**
  * Finds override pins that are banned floating tags or below requested ranges.
+ * Checks package.json overrides and, when given, pnpm-workspace.yaml overrides.
  */
 export function findStaleOverridePins(
   pkg: PackageJson,
-  lock: NpmLockfile | { packages?: Record<string, unknown> }
+  lock: NpmLockfile | { packages?: Record<string, unknown> },
+  workspaceOverrides?: Record<string, unknown>
 ): OverrideFinding[] {
-  const overrides = pkg.overrides;
-  if (!overrides || typeof overrides !== "object") {
+  const overrides = mergeOverrideMaps(asOverrideMap(pkg.overrides), workspaceOverrides);
+  if (Object.keys(overrides).length === 0) {
     return [];
   }
   const errors: OverrideFinding[] = [];
-  const pins = flattenOverrides(overrides as Record<string, unknown>);
+  const pins = flattenOverrides(overrides);
 
   for (const pin of pins) {
     const label = pin.trail.join(" → ");
@@ -376,7 +401,8 @@ export function findStaleOverridePins(
 }
 
 /**
- * Finds keys where package.json and pnpm-workspace.yaml overrides disagree.
+ * Finds keys defined in both package.json and pnpm-workspace.yaml whose values differ.
+ * A pin that exists in only one file is not drift — pnpm allows either location.
  */
 export function findWorkspaceOverrideDrift(
   pkg: PackageJson,
@@ -385,13 +411,14 @@ export function findWorkspaceOverrideDrift(
   if (!workspaceOverrides) {
     return [];
   }
-  const pkgOverrides =
-    pkg.overrides && typeof pkg.overrides === "object" ? pkg.overrides : {};
+  const pkgOverrides = asOverrideMap(pkg.overrides);
   const errors: OverrideFinding[] = [];
-  const keys = new Set([...Object.keys(pkgOverrides), ...Object.keys(workspaceOverrides)]);
-  for (const key of keys) {
-    const left = JSON.stringify(pkgOverrides[key] ?? null);
-    const right = JSON.stringify(workspaceOverrides[key] ?? null);
+  for (const key of Object.keys(pkgOverrides)) {
+    if (!Object.hasOwn(workspaceOverrides, key)) {
+      continue;
+    }
+    const left = JSON.stringify(pkgOverrides[key]);
+    const right = JSON.stringify(workspaceOverrides[key]);
     if (left !== right) {
       errors.push({
         override: key,
