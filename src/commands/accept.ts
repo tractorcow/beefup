@@ -43,19 +43,22 @@ export interface AcceptResult {
  */
 export async function runAccept(options: AcceptOptions): Promise<AcceptResult> {
   const projectRoot = path.resolve(options.projectRoot);
-  const packageRoot = await resolveCommandPackageRoot(
+  const packageRoot = resolveCommandPackageRoot(
     projectRoot,
     options.packageRoot
   );
   const runner = options.runner ?? defaultProcessRunner;
   const log = getLogger();
   const project = await detectProject(packageRoot.absolute);
-  const staged = await requireStagedUpgrade(projectRoot, project.lockfileName);
+  const staged = await requireStagedUpgrade(
+    packageRoot.absolute,
+    project.lockfileName
+  );
 
-  const inProgress = inProgressPath(projectRoot);
+  const inProgress = inProgressPath(packageRoot.absolute);
   if (await pathExists(inProgress)) {
     throw new BeefupError(
-      `cannot accept while an in-place ${CliCommands.Stage} is in progress (${path.relative(projectRoot, inProgress) || inProgress}); run beefup ${CliCommands.Stage} to restore the live tree first`
+      `cannot accept while an in-place ${CliCommands.Stage} is in progress (${path.relative(packageRoot.absolute, inProgress) || inProgress}); run beefup ${CliCommands.Stage} to restore the live tree first`
     );
   }
 
@@ -66,7 +69,7 @@ export async function runAccept(options: AcceptOptions): Promise<AcceptResult> {
     await assertNpmVersion(protectedPm);
   }
 
-  const config = await loadConfig(packageRoot.absolute);
+  const config = await loadConfig(projectRoot, packageRoot.absolute);
   const policy = await evaluatePolicy(
     staged,
     project.packageManager,
@@ -78,18 +81,18 @@ export async function runAccept(options: AcceptOptions): Promise<AcceptResult> {
   await log.timed("saving prior snapshot", () =>
     collectPriorOutputs(
       packageRoot.absolute,
-      projectRoot,
+      packageRoot.absolute,
       project.lockfileName
     )
   );
   const copied = await log.timed("applying staged outputs", () =>
     applyStagedOutputs(
-      projectRoot,
+      packageRoot.absolute,
       packageRoot.absolute,
       project.lockfileName
     )
   );
-  await removeStagedOutputs(projectRoot);
+  await removeStagedOutputs(packageRoot.absolute);
   await log.timed("installing from lockfile", () =>
     installFromLockfile({
       pm: protectedPm,

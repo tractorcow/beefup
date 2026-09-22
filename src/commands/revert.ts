@@ -38,19 +38,19 @@ export interface RevertResult {
  */
 export async function runRevert(options: RevertOptions): Promise<RevertResult> {
   const projectRoot = path.resolve(options.projectRoot);
-  const packageRoot = await resolveCommandPackageRoot(
+  const packageRoot = resolveCommandPackageRoot(
     projectRoot,
     options.packageRoot
   );
   const runner = options.runner ?? defaultProcessRunner;
   const log = getLogger();
   const project = await detectProject(packageRoot.absolute);
-  await requirePriorUpgrade(projectRoot, project.lockfileName);
+  await requirePriorUpgrade(packageRoot.absolute, project.lockfileName);
 
-  const inProgress = inProgressPath(projectRoot);
+  const inProgress = inProgressPath(packageRoot.absolute);
   if (await pathExists(inProgress)) {
     throw new BeefupError(
-      `cannot revert while an in-place ${CliCommands.Stage} is in progress (${path.relative(projectRoot, inProgress) || inProgress}); run beefup ${CliCommands.Stage} to restore the live tree first`
+      `cannot revert while an in-place ${CliCommands.Stage} is in progress (${path.relative(packageRoot.absolute, inProgress) || inProgress}); run beefup ${CliCommands.Stage} to restore the live tree first`
     );
   }
 
@@ -63,12 +63,12 @@ export async function runRevert(options: RevertOptions): Promise<RevertResult> {
 
   const copied = await log.timed("restoring prior outputs", () =>
     applyPriorOutputs(
-      projectRoot,
+      packageRoot.absolute,
       packageRoot.absolute,
       project.lockfileName
     )
   );
-  await removeStagedOutputs(projectRoot);
+  await removeStagedOutputs(packageRoot.absolute);
   await log.timed("installing from lockfile", () =>
     installFromLockfile({
       pm: protectedPm,

@@ -27,7 +27,7 @@ There is no policy gate: prior was previously live. Scripts may run, same as acc
 | Option | Values | Default |
 | --- | --- | --- |
 | `--dir` | path | current working directory |
-| `--package-root` | path | project root, or the value stored in the last report |
+| `--package-root` | path | project root, or `packageRoot` in project config (repeatable) |
 | `--format` | `html`, `markdown`, `text` | `html` (file under `.beefup/report`) |
 | `--no-safe-chain` | flag | off (require Safe Chain; with the flag, use npm/pnpm directly) |
 | `--quiet`, `-q` | flag | off (suppress warnings) |

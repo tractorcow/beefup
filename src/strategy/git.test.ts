@@ -67,6 +67,28 @@ describe("hasNonBeefupWorkingTreeChanges", () => {
     );
   });
 
+  it("ignores untracked files under a nested .beefup directory", () => {
+    assert.equal(
+      hasNonBeefupWorkingTreeChanges(`?? apps/web/${BEEFUP_DIR}/staged/package.json`),
+      false
+    );
+    assert.equal(
+      hasNonBeefupWorkingTreeChanges(`?? apps/web/${BEEFUP_DIR}/`),
+      false
+    );
+  });
+
+  it("ignores dirty files outside the current package subtree", () => {
+    assert.equal(
+      hasNonBeefupWorkingTreeChanges("?? apps/api/package.json", "apps/web"),
+      false
+    );
+    assert.equal(
+      hasNonBeefupWorkingTreeChanges(" M apps/web/package.json", "apps/web"),
+      true
+    );
+  });
+
   it("detects untracked or modified files outside .beefup", () => {
     assert.equal(hasNonBeefupWorkingTreeChanges("?? dirty.txt"), true);
     assert.equal(hasNonBeefupWorkingTreeChanges(" M package.json"), true);

@@ -24,7 +24,7 @@ export interface CliArgs {
   mode?: UpgradeMode;
   strategy?: StageStrategyName;
   dir?: string;
-  packageRoot?: string;
+  packageRoot?: string[];
   format: ReportFormat;
   /** When true, skip Safe Chain and use npm/pnpm directly. */
   noSafeChain: boolean;
@@ -74,8 +74,12 @@ export function parseCliArgs(argv: string[]): CliArgs {
       args.dir = argv[i + 1];
       i += 1;
     } else if (arg === CliOptionFlags.PackageRoot) {
-      args.packageRoot = argv[i + 1];
+      const value = argv[i + 1];
       i += 1;
+      if (!args.packageRoot) {
+        args.packageRoot = [];
+      }
+      args.packageRoot.push(value);
     } else if (arg === CliOptionFlags.Format) {
       const value = argv[i + 1];
       i += 1;
@@ -155,7 +159,7 @@ OPTIONS:
     ${CliOptionFlags.Mode} ${UpgradeModes.SameMajor}|${UpgradeModes.Latest}     Upgrade mode (default: ${UpgradeModes.SameMajor}, or project config)
     ${CliOptionFlags.Strategy} ${StageStrategies.Worktree}|${StageStrategies.Inplace}  Isolation strategy for ${CliCommands.Stage} (default: ${StageStrategies.Worktree})
     ${CliOptionFlags.Dir} <path>                 Project directory (default: cwd)
-    ${CliOptionFlags.PackageRoot} <path>       Directory with package.json and lockfile (default: project root)
+    ${CliOptionFlags.PackageRoot} <path>       Directory with package.json and lockfile (repeatable; default: project root or config)
     ${CliOptionFlags.Format} ${Object.values(ReportFormats).join("|")}  Human-readable file under ${BEEFUP_DIR}/report (default: ${ReportFormats.Html}; ${ReportFileNames.Json} is always written)
     ${CliOptionFlags.NoSafeChain}            Bypass Safe Chain and use npm/pnpm directly
     ${CliOptionFlags.Quiet}, ${CliOptionFlags.QuietShort}                Suppress warnings
@@ -170,6 +174,7 @@ EXAMPLES:
     beefup ${CliCommands.Stage} ${CliOptionFlags.Mode} ${UpgradeModes.Latest} ${CliOptionFlags.Strategy} ${StageStrategies.Inplace}
     beefup ${CliCommands.Stage} ${CliOptionFlags.Format} ${ReportFormats.Html}
     beefup ${CliCommands.Stage} ${CliOptionFlags.PackageRoot} ./app
+    beefup ${CliCommands.Stage} ${CliOptionFlags.PackageRoot} ./app ${CliOptionFlags.PackageRoot} ./api
     beefup ${CliCommands.Report}
     beefup ${CliCommands.Report} ${CliOptionFlags.Format} ${ReportFormats.Markdown}
     beefup ${CliCommands.Accept}

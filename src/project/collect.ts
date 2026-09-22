@@ -36,31 +36,31 @@ export async function snapshotWritableFiles(
 }
 
 /**
- * Copies writable project files from a staging source into `.beefup/staged`.
+ * Copies writable project files from a staging source into the package `.beefup/staged`.
  */
 export async function collectStagedOutputs(
   sourceRoot: string,
-  projectRoot: string,
+  packageRoot: string,
   lockfileName: string
 ): Promise<string> {
   return snapshotWritableFiles(
     sourceRoot,
-    stagedDir(projectRoot),
+    stagedDir(packageRoot),
     lockfileName
   );
 }
 
 /**
- * Copies writable project files from a live tree into `.beefup/prior`.
+ * Copies writable project files from a live tree into the package `.beefup/prior`.
  */
 export async function collectPriorOutputs(
   sourceRoot: string,
-  projectRoot: string,
+  packageRoot: string,
   lockfileName: string
 ): Promise<string> {
   return snapshotWritableFiles(
     sourceRoot,
-    priorDir(projectRoot),
+    priorDir(packageRoot),
     lockfileName
   );
 }
@@ -69,7 +69,7 @@ export async function collectPriorOutputs(
  * Ensures a snapshot directory contains a lockfile. Returns the snapshot root.
  */
 export async function requireSnapshotLockfile(
-  projectRoot: string,
+  packageRoot: string,
   snapshotRoot: string,
   lockfileName: string,
   hint: string
@@ -77,39 +77,39 @@ export async function requireSnapshotLockfile(
   const lockPath = path.join(snapshotRoot, lockfileName);
   if (!(await pathExists(lockPath))) {
     throw new BeefupError(
-      `no lockfile at ${path.relative(projectRoot, lockPath) || lockPath}; ${hint}`
+      `no lockfile at ${path.relative(packageRoot, lockPath) || lockPath}; ${hint}`
     );
   }
   return snapshotRoot;
 }
 
 /**
- * Ensures `.beefup/staged` contains a proposal lockfile for the project.
+ * Ensures the package `.beefup/staged` contains a proposal lockfile.
  * Returns the staged directory path.
  */
 export async function requireStagedUpgrade(
-  projectRoot: string,
+  packageRoot: string,
   lockfileName: string
 ): Promise<string> {
   return requireSnapshotLockfile(
-    projectRoot,
-    stagedDir(projectRoot),
+    packageRoot,
+    stagedDir(packageRoot),
     lockfileName,
     `run beefup ${CliCommands.Stage} first`
   );
 }
 
 /**
- * Ensures `.beefup/prior` contains a baseline lockfile for the project.
+ * Ensures the package `.beefup/prior` contains a baseline lockfile.
  * Returns the prior directory path.
  */
 export async function requirePriorUpgrade(
-  projectRoot: string,
+  packageRoot: string,
   lockfileName: string
 ): Promise<string> {
   return requireSnapshotLockfile(
-    projectRoot,
-    priorDir(projectRoot),
+    packageRoot,
+    priorDir(packageRoot),
     lockfileName,
     `run beefup ${CliCommands.Accept} or beefup ${CliCommands.Rewind} first`
   );
@@ -138,47 +138,47 @@ export async function applySnapshotToLive(
 }
 
 /**
- * Copies staged proposal files from `.beefup/staged` into the live package tree.
+ * Copies staged proposal files from the package `.beefup/staged` into the live package tree.
  */
 export async function applyStagedOutputs(
-  projectRoot: string,
+  packageRoot: string,
   liveRoot: string,
   lockfileName: string
 ): Promise<string[]> {
   return applySnapshotToLive(
-    stagedDir(projectRoot),
+    stagedDir(packageRoot),
     liveRoot,
     lockfileName
   );
 }
 
 /**
- * Copies prior snapshot files from `.beefup/prior` into the live package tree.
+ * Copies prior snapshot files from the package `.beefup/prior` into the live package tree.
  */
 export async function applyPriorOutputs(
-  projectRoot: string,
+  packageRoot: string,
   liveRoot: string,
   lockfileName: string
 ): Promise<string[]> {
   return applySnapshotToLive(
-    priorDir(projectRoot),
+    priorDir(packageRoot),
     liveRoot,
     lockfileName
   );
 }
 
 /**
- * Removes `.beefup/staged` if it exists.
+ * Removes the package `.beefup/staged` if it exists.
  */
-export async function removeStagedOutputs(projectRoot: string): Promise<void> {
-  await removePath(stagedDir(projectRoot));
+export async function removeStagedOutputs(packageRoot: string): Promise<void> {
+  await removePath(stagedDir(packageRoot));
 }
 
 /**
- * Removes `.beefup/prior` if it exists.
+ * Removes the package `.beefup/prior` if it exists.
  */
-export async function removePriorOutputs(projectRoot: string): Promise<void> {
-  await removePath(priorDir(projectRoot));
+export async function removePriorOutputs(packageRoot: string): Promise<void> {
+  await removePath(priorDir(packageRoot));
 }
 
 /**

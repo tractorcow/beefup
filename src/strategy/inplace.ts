@@ -15,7 +15,7 @@ export class InPlaceStrategy implements StageStrategy {
   private backedUp = false;
 
   /**
-   * Creates an in-place strategy for the project root, lockfile, and package dir.
+   * Creates an in-place strategy. `projectRoot` is the package directory that owns `.beefup`.
    */
   constructor(
     private readonly projectRoot: string,

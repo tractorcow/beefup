@@ -4,6 +4,12 @@ export const PackageManagers = {
   Pnpm: "pnpm",
 } as const;
 
+/** Lockfile basenames Beefup detects for npm and pnpm. */
+export const LockfileNames = {
+  Npm: "package-lock.json",
+  Pnpm: "pnpm-lock.yaml",
+} as const;
+
 /** Detected or configured package manager for a project. */
 export type PackageManager =
   (typeof PackageManagers)[keyof typeof PackageManagers];

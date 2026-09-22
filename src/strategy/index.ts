@@ -17,7 +17,7 @@ export function createStageStrategy(
   packageRoot: string
 ): StageStrategy {
   if (name === StageStrategies.Inplace) {
-    return new InPlaceStrategy(projectRoot, lockfileName, packageRoot);
+    return new InPlaceStrategy(packageRoot, lockfileName, packageRoot);
   }
   const relative = path.relative(projectRoot, packageRoot) || DefaultPackageRoot;
   return new WorktreeStrategy(projectRoot, relative.replaceAll("\\", "/"));

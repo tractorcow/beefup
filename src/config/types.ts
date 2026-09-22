@@ -89,6 +89,9 @@ export const DefaultLogLevel = LogLevels.Warn;
 /** Default package-root path: manifests live at the project root. */
 export const DefaultPackageRoot = "." as const;
 
+/** Repo-level JSON file that holds the same schema as `package.json#beefup`. */
+export const BeefupConfigFileName = ".beefup.json";
+
 /** CLI command name (`stage`, `report`, `accept`, `revert`, or `rewind`). */
 export type CliCommand = (typeof CliCommands)[keyof typeof CliCommands];
 
@@ -171,6 +174,8 @@ export interface BeefupConfig {
   preferExact: boolean;
   alignedGroups: AlignedGroup[];
   alignment?: AlignmentAction;
+  /** One package root, or several paths/globs relative to the config directory. */
+  packageRoot?: string | string[];
 }
 
 /** Default Beefup project config when none is supplied in package manifests. */

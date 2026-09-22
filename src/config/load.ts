@@ -7,6 +7,7 @@ import { BeefupError } from "../errors.js";
 import { pathExists, readJsonFile } from "../fsutil.js";
 import type { PackageJson } from "../project/package-json.js";
 import {
+  BeefupConfigFileName,
   DEFAULT_CONFIG,
   isAlignmentAction,
   isUpgradeMode,
@@ -21,10 +22,22 @@ function asStringArray(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) {
     return undefined;
   }
-  if (value.every((item) => typeof item === "string")) {
+  if (value.every((item): item is string => typeof item === "string")) {
     return value;
   }
   return undefined;
+}
+
+/**
+ * Parses `packageRoot` from config as a string or string array.
+ */
+function parsePackageRoot(
+  value: unknown
+): string | string[] | undefined {
+  if (typeof value === "string") {
+    return value;
+  }
+  return asStringArray(value);
 }
 
 /**
@@ -49,6 +62,10 @@ function parsePartial(raw: unknown): Partial<BeefupConfig> {
   }
   if (isAlignmentAction(input.alignment)) {
     partial.alignment = input.alignment;
+  }
+  const packageRoot = parsePackageRoot(input.packageRoot);
+  if (packageRoot !== undefined) {
+    partial.packageRoot = packageRoot;
   }
   if (Array.isArray(input.alignedGroups)) {
     partial.alignedGroups = input.alignedGroups.flatMap((group) => {
@@ -79,41 +96,114 @@ function parsePartial(raw: unknown): Partial<BeefupConfig> {
 }
 
 /**
- * Loads and merges Beefup config from package.json and pnpm-workspace.yaml.
+ * Merges partial configs so later sources win per field.
+ */
+function mergePartials(partials: Partial<BeefupConfig>[]): Partial<BeefupConfig> {
+  const merged: Partial<BeefupConfig> = {};
+  for (const part of partials) {
+    if (part.mode !== undefined) {
+      merged.mode = part.mode;
+    }
+    if (part.bannedRanges !== undefined) {
+      merged.bannedRanges = part.bannedRanges;
+    }
+    if (part.preferExact !== undefined) {
+      merged.preferExact = part.preferExact;
+    }
+    if (part.alignment !== undefined) {
+      merged.alignment = part.alignment;
+    }
+    if (part.alignedGroups !== undefined) {
+      merged.alignedGroups = part.alignedGroups;
+    }
+    if (part.packageRoot !== undefined) {
+      merged.packageRoot = part.packageRoot;
+    }
+  }
+  return merged;
+}
+
+/**
+ * Loads `.beefup.json`, `package.json#beefup`, and `pnpm-workspace.yaml#beefup` from a directory.
+ * Missing files are skipped; a missing root `package.json` is not an error.
+ */
+export async function loadConfigFromDir(
+  dir: string
+): Promise<Partial<BeefupConfig>> {
+  const fromFile = await loadBeefupJson(dir);
+  const fromPkg = await loadPackageJsonBeefup(dir);
+  const fromWorkspace = await loadWorkspaceBeefup(dir);
+  return mergePartials([fromFile, fromPkg, fromWorkspace]);
+}
+
+/**
+ * Reads `.beefup.json` from `dir` when present.
+ */
+async function loadBeefupJson(dir: string): Promise<Partial<BeefupConfig>> {
+  const filePath = path.join(dir, BeefupConfigFileName);
+  if (!(await pathExists(filePath))) {
+    return {};
+  }
+  return parsePartial(await readJsonFile<unknown>(filePath));
+}
+
+/**
+ * Reads `package.json#beefup` from `dir` when the file exists.
+ */
+async function loadPackageJsonBeefup(
+  dir: string
+): Promise<Partial<BeefupConfig>> {
+  const pkgPath = path.join(dir, "package.json");
+  if (!(await pathExists(pkgPath))) {
+    return {};
+  }
+  const pkg = await readJsonFile<PackageJson>(pkgPath);
+  return parsePartial(pkg.beefup);
+}
+
+/**
+ * Reads `pnpm-workspace.yaml#beefup` from `dir` when the file exists.
+ */
+async function loadWorkspaceBeefup(
+  dir: string
+): Promise<Partial<BeefupConfig>> {
+  const workspacePath = path.join(dir, "pnpm-workspace.yaml");
+  if (!(await pathExists(workspacePath))) {
+    return {};
+  }
+  const parsed = parseYaml(await readFile(workspacePath, "utf8"));
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return {};
+  }
+  return parsePartial((parsed as Record<string, unknown>).beefup);
+}
+
+/**
+ * Loads and merges Beefup config from repo-level files and the package being upgraded.
  * An optional mode override (e.g. CLI `--mode`) wins over file config.
  */
 export async function loadConfig(
   projectRoot: string,
+  packageRoot = projectRoot,
   modeOverride?: UpgradeMode
 ): Promise<BeefupConfig> {
-  const pkgPath = path.join(projectRoot, "package.json");
+  const pkgPath = path.join(packageRoot, "package.json");
   if (!(await pathExists(pkgPath))) {
     throw new BeefupError(`no package.json at ${pkgPath}`);
   }
-  const pkg = await readJsonFile<PackageJson>(pkgPath);
-  const fromPkg = parsePartial(pkg.beefup);
 
-  let fromWorkspace: Partial<BeefupConfig> = {};
-  const workspacePath = path.join(projectRoot, "pnpm-workspace.yaml");
-  if (await pathExists(workspacePath)) {
-    const parsed = parseYaml(await readFile(workspacePath, "utf8"));
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      fromWorkspace = parsePartial((parsed as Record<string, unknown>).beefup);
-    }
-  }
-
+  const repo = await loadConfigFromDir(projectRoot);
+  const sameDir =
+    path.resolve(projectRoot) === path.resolve(packageRoot);
+  const pkg = sameDir ? {} : await loadConfigFromDir(packageRoot);
+  const mergedPartial = mergePartials([repo, pkg]);
   const merged: BeefupConfig = {
     ...DEFAULT_CONFIG,
-    ...fromPkg,
-    ...fromWorkspace,
+    ...mergedPartial,
     bannedRanges:
-      fromWorkspace.bannedRanges ??
-      fromPkg.bannedRanges ??
-      DEFAULT_CONFIG.bannedRanges,
+      mergedPartial.bannedRanges ?? DEFAULT_CONFIG.bannedRanges,
     alignedGroups:
-      fromWorkspace.alignedGroups ??
-      fromPkg.alignedGroups ??
-      DEFAULT_CONFIG.alignedGroups,
+      mergedPartial.alignedGroups ?? DEFAULT_CONFIG.alignedGroups,
   };
 
   if (modeOverride) {

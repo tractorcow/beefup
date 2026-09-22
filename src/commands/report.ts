@@ -67,13 +67,13 @@ interface ReportTrees {
  * Only one snapshot exists at a time: staged after `stage`, prior after accept/rewind/revert.
  */
 async function resolveReportTrees(
-  projectRoot: string,
+  packageRoot: string,
   liveRoot: string,
   lockfileName: string,
   forced?: ReportComparison
 ): Promise<ReportTrees> {
-  const staged = stagedDir(projectRoot);
-  const prior = priorDir(projectRoot);
+  const staged = stagedDir(packageRoot);
+  const prior = priorDir(packageRoot);
   const stagedLock = path.join(staged, lockfileName);
   const priorLock = path.join(prior, lockfileName);
   const stagedExists = await pathExists(stagedLock);
@@ -82,7 +82,7 @@ async function resolveReportTrees(
   if (forced === ReportComparisons.Proposal) {
     if (!stagedExists) {
       throw new BeefupError(
-        `no staged lockfile at ${path.relative(projectRoot, stagedLock) || stagedLock}; run beefup ${CliCommands.Stage} first`
+        `no staged lockfile at ${path.relative(packageRoot, stagedLock) || stagedLock}; run beefup ${CliCommands.Stage} first`
       );
     }
     return { comparison: ReportComparisons.Proposal, beforeRoot: liveRoot, afterRoot: staged };
@@ -90,7 +90,7 @@ async function resolveReportTrees(
   if (forced === ReportComparisons.Applied) {
     if (!priorExists) {
       throw new BeefupError(
-        `no prior lockfile at ${path.relative(projectRoot, priorLock) || priorLock}; run beefup ${CliCommands.Accept} or beefup ${CliCommands.Rewind} first`
+        `no prior lockfile at ${path.relative(packageRoot, priorLock) || priorLock}; run beefup ${CliCommands.Accept} or beefup ${CliCommands.Rewind} first`
       );
     }
     return { comparison: ReportComparisons.Applied, beforeRoot: prior, afterRoot: liveRoot };
@@ -113,16 +113,16 @@ async function resolveReportTrees(
  */
 export async function runReport(options: ReportOptions): Promise<StageReport> {
   const projectRoot = path.resolve(options.projectRoot);
-  const packageRoot = await resolveCommandPackageRoot(
+  const packageRoot = resolveCommandPackageRoot(
     projectRoot,
     options.packageRoot
   );
   const runner = options.runner ?? defaultProcessRunner;
   const log = getLogger();
   const project = await detectProject(packageRoot.absolute);
-  const reports = reportDir(projectRoot);
+  const reports = reportDir(packageRoot.absolute);
   const trees = await resolveReportTrees(
-    projectRoot,
+    packageRoot.absolute,
     packageRoot.absolute,
     project.lockfileName,
     options.comparison
@@ -133,6 +133,7 @@ export async function runReport(options: ReportOptions): Promise<StageReport> {
 
   const previous = await readPreviousReport(reports);
   const config = await loadConfig(
+    projectRoot,
     packageRoot.absolute,
     options.mode ?? parseUpgradeMode(previous?.mode)
   );

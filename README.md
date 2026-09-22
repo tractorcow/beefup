@@ -104,6 +104,7 @@ beefup stage
 beefup stage --mode latest --strategy inplace
 beefup stage --format markdown
 beefup stage --package-root ./app
+beefup stage --package-root ./app --package-root ./api
 beefup report
 beefup accept
 beefup revert
