@@ -3,11 +3,13 @@ import { describe, it } from "node:test";
 
 import {
   classifyFindings,
+  mergeFindings,
   FindingSeverities,
   SecuritySources,
   type SecurityFinding,
 } from "./classify.js";
 import { META_VULN_TITLE } from "./npm-audit.js";
+import { AdvisoryRefKinds } from "./refs.js";
 
 /**
  * Builds a leaf advisory finding for classification tests.
@@ -22,7 +24,7 @@ function leafFinding(
     refs: [],
     packageName,
     severity,
-    source: SecuritySources.NpmAudit,
+    sources: [SecuritySources.NpmAudit],
     title: id,
   };
 }
@@ -41,7 +43,7 @@ function metaFinding(
     viaPackages,
     packageName,
     severity,
-    source: SecuritySources.NpmAudit,
+    sources: [SecuritySources.NpmAudit],
     title: META_VULN_TITLE,
   };
 }
@@ -55,14 +57,14 @@ describe("classifyFindings", () => {
           refs: [],
           packageName: "a",
           severity: FindingSeverities.High,
-          source: SecuritySources.NpmAudit,
+          sources: [SecuritySources.NpmAudit],
         },
         {
           id: "CVE-2",
           refs: [],
           packageName: "b",
           severity: FindingSeverities.Low,
-          source: SecuritySources.CveLite,
+          sources: [SecuritySources.CveLite],
         },
       ],
       [
@@ -71,14 +73,14 @@ describe("classifyFindings", () => {
           refs: [],
           packageName: "b",
           severity: FindingSeverities.Low,
-          source: SecuritySources.CveLite,
+          sources: [SecuritySources.CveLite],
         },
         {
           id: "CVE-3",
           refs: [],
           packageName: "c",
           severity: FindingSeverities.Critical,
-          source: SecuritySources.NpmAudit,
+          sources: [SecuritySources.NpmAudit],
         },
       ]
     );
@@ -152,6 +154,100 @@ describe("classifyFindings", () => {
     assert.deepEqual(
       result.introduced.map((item) => item.packageName),
       ["lodash", "app", "mid"]
+    );
+  });
+
+  it("records both scanners when the same id is reported twice", () => {
+    const result = classifyFindings(
+      [
+        {
+          id: "GHSA-fx2h-pf6j-xcff",
+          refs: [],
+          packageName: "vite",
+          severity: FindingSeverities.High,
+          sources: [SecuritySources.NpmAudit],
+          title: "audit title",
+        },
+        {
+          id: "GHSA-fx2h-pf6j-xcff",
+          refs: [],
+          packageName: "vite",
+          severity: FindingSeverities.High,
+          sources: [SecuritySources.CveLite],
+          title: "cve-lite longer advisory title",
+        },
+      ],
+      [
+        {
+          id: "GHSA-fx2h-pf6j-xcff",
+          refs: [],
+          packageName: "vite",
+          severity: FindingSeverities.High,
+          sources: [SecuritySources.CveLite],
+        },
+        {
+          id: "GHSA-fx2h-pf6j-xcff",
+          refs: [],
+          packageName: "vite",
+          severity: FindingSeverities.High,
+          sources: [SecuritySources.NpmAudit],
+        },
+      ]
+    );
+    assert.equal(result.unresolved.length, 1);
+    assert.deepEqual(result.unresolved[0]?.sources, [
+      SecuritySources.NpmAudit,
+      SecuritySources.CveLite,
+    ]);
+    assert.equal(result.fixed.length, 0);
+    assert.equal(result.introduced.length, 0);
+  });
+});
+
+describe("mergeFindings", () => {
+  it("unions sources and refs for the same id and package", () => {
+    const merged = mergeFindings([
+      {
+        id: "GHSA-fx2h-pf6j-xcff",
+        refs: [
+          {
+            id: "GHSA-fx2h-pf6j-xcff",
+            kind: AdvisoryRefKinds.Ghsa,
+            url: "https://github.com/advisories/GHSA-fx2h-pf6j-xcff",
+          },
+        ],
+        packageName: "vite",
+        version: "7.3.2",
+        severity: FindingSeverities.Moderate,
+        sources: [SecuritySources.NpmAudit],
+        title: "audit",
+      },
+      {
+        id: "GHSA-fx2h-pf6j-xcff",
+        refs: [
+          {
+            id: "CVE-2026-53571",
+            kind: AdvisoryRefKinds.Cve,
+            url: "https://nvd.nist.gov/vuln/detail/CVE-2026-53571",
+          },
+        ],
+        packageName: "vite",
+        severity: FindingSeverities.High,
+        sources: [SecuritySources.CveLite],
+        title: "vite: server.fs.deny bypass",
+      },
+    ]);
+    assert.equal(merged.length, 1);
+    assert.deepEqual(merged[0]?.sources, [
+      SecuritySources.NpmAudit,
+      SecuritySources.CveLite,
+    ]);
+    assert.equal(merged[0]?.severity, FindingSeverities.High);
+    assert.equal(merged[0]?.version, "7.3.2");
+    assert.equal(merged[0]?.title, "vite: server.fs.deny bypass");
+    assert.deepEqual(
+      merged[0]?.refs.map((ref) => ref.id),
+      ["GHSA-fx2h-pf6j-xcff", "CVE-2026-53571"]
     );
   });
 });

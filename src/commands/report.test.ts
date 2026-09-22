@@ -244,7 +244,7 @@ describe("runReport", () => {
             ],
             packageName: "lodash",
             severity: FindingSeverities.High,
-            source: SecuritySources.NpmAudit,
+            sources: [SecuritySources.NpmAudit],
             title: "Prototype pollution",
           },
           {
@@ -253,7 +253,7 @@ describe("runReport", () => {
             viaPackages: ["lodash"],
             packageName: "my-app",
             severity: FindingSeverities.High,
-            source: SecuritySources.NpmAudit,
+            sources: [SecuritySources.NpmAudit],
             title: META_VULN_TITLE,
           },
         ],
@@ -273,8 +273,8 @@ describe("runReport", () => {
     assert.match(markdown, /2 security findings introduced — review before accept/);
     assert.doesNotMatch(markdown, /CVE\(s\)/);
     assert.doesNotMatch(markdown, /remain open risk/);
-    assert.match(markdown, /\| Severity \| Title \| References \| Package \|/);
-    assert.doesNotMatch(markdown, /\| Source \|/);
+    assert.match(markdown, /\| Severity \| Title \| References \| Package \| Scanners \|/);
+    assert.match(markdown, /npm-audit/);
     assert.match(markdown, /Prototype pollution/);
     assert.match(markdown, /transitive \(via `lodash`\)/);
     assert.match(markdown, /### Optional \/ platform \(1\)/);
@@ -358,7 +358,7 @@ describe("runReport", () => {
             refs: [],
             packageName: "leftpad",
             severity: FindingSeverities.High,
-            source: SecuritySources.NpmAudit,
+            sources: [SecuritySources.NpmAudit],
             title: "example",
           },
         ],

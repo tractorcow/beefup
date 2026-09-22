@@ -21,28 +21,34 @@ interface NpmAuditVulnerability {
   nodes?: string[];
 }
 
+/** npm v6 / pnpm `pnpm audit --json` advisory object. */
+interface NpmV6Advisory {
+  id?: number | string;
+  title?: string;
+  module_name?: string;
+  severity?: string;
+  github_advisory_id?: string;
+  url?: string;
+  cves?: string[];
+  findings?: Array<{ version?: string }>;
+}
+
 interface NpmAuditReport {
   vulnerabilities?: Record<string, NpmAuditVulnerability>;
+  advisories?: Record<string, NpmV6Advisory>;
 }
 
 /** Title used for npm meta-vulns that only depend on other vulnerable packages. */
 export const META_VULN_TITLE = "Depends on vulnerable package(s)";
 
 /**
- * Parses `npm audit --json` output into normalized SecurityFinding entries.
- * Prefers GHSA/CVE refs extracted from advisory URLs over numeric npm advisory ids.
- * Meta-vulns (via package-name strings only) are kept with viaPackages labels.
- * Returns an empty list when the payload is not valid JSON.
+ * Parses npm v7-style `vulnerabilities` map entries into SecurityFinding rows.
  */
-export function parseNpmAuditJson(raw: string): SecurityFinding[] {
-  let parsed: NpmAuditReport;
-  try {
-    parsed = JSON.parse(raw) as NpmAuditReport;
-  } catch {
-    return [];
-  }
+function findingsFromVulnerabilities(
+  vulnerabilities: Record<string, NpmAuditVulnerability>
+): SecurityFinding[] {
   const findings: SecurityFinding[] = [];
-  for (const [packageName, vuln] of Object.entries(parsed.vulnerabilities ?? {})) {
+  for (const [packageName, vuln] of Object.entries(vulnerabilities)) {
     const vias = Array.isArray(vuln.via) ? vuln.via : [];
     const advisoryVias = vias.filter(
       (item): item is NpmAuditVia => typeof item === "object" && item !== null
@@ -61,7 +67,7 @@ export function parseNpmAuditJson(raw: string): SecurityFinding[] {
         viaPackages: viaPackages.length > 0 ? viaPackages : undefined,
         packageName: vuln.name ?? packageName,
         severity: normalizeSeverity(vuln.severity),
-        source: SecuritySources.NpmAudit,
+        sources: [SecuritySources.NpmAudit],
         title: META_VULN_TITLE,
       });
       continue;
@@ -84,10 +90,67 @@ export function parseNpmAuditJson(raw: string): SecurityFinding[] {
         refs,
         packageName: via.name ?? vuln.name ?? packageName,
         severity: normalizeSeverity(via.severity ?? vuln.severity),
-        source: SecuritySources.NpmAudit,
+        sources: [SecuritySources.NpmAudit],
         title: via.title,
       });
     }
   }
   return findings;
+}
+
+/**
+ * Parses npm v6 / pnpm `advisories` map entries into SecurityFinding rows.
+ */
+function findingsFromAdvisories(
+  advisories: Record<string, NpmV6Advisory>
+): SecurityFinding[] {
+  const findings: SecurityFinding[] = [];
+  for (const advisory of Object.values(advisories)) {
+    const packageName = advisory.module_name;
+    if (!packageName) {
+      continue;
+    }
+    const refs = dedupeRefs([
+      ...refsFromText(advisory.github_advisory_id),
+      ...refsFromText(advisory.url),
+      ...(advisory.cves ?? []).flatMap((item) => refsFromText(item)),
+      ...refsFromText(advisory.title),
+    ]);
+    const version = advisory.findings?.find(
+      (item) => typeof item.version === "string"
+    )?.version;
+    const fallback =
+      advisory.github_advisory_id ??
+      (advisory.id !== undefined ? `npm:${advisory.id}` : packageName);
+    findings.push({
+      id: primaryFindingId(refs, String(fallback)),
+      refs,
+      packageName,
+      version,
+      severity: normalizeSeverity(advisory.severity),
+      sources: [SecuritySources.NpmAudit],
+      title: advisory.title,
+    });
+  }
+  return findings;
+}
+
+/**
+ * Parses `npm audit --json` or `pnpm audit --json` into normalized findings.
+ * Supports npm v7 `vulnerabilities` maps and the npm v6 / pnpm `advisories` map.
+ * Prefers GHSA/CVE refs extracted from advisory URLs over numeric npm advisory ids.
+ * Meta-vulns (via package-name strings only) are kept with viaPackages labels.
+ * Returns an empty list when the payload is not valid JSON.
+ */
+export function parseNpmAuditJson(raw: string): SecurityFinding[] {
+  let parsed: NpmAuditReport;
+  try {
+    parsed = JSON.parse(raw) as NpmAuditReport;
+  } catch {
+    return [];
+  }
+  return [
+    ...findingsFromVulnerabilities(parsed.vulnerabilities ?? {}),
+    ...findingsFromAdvisories(parsed.advisories ?? {}),
+  ];
 }

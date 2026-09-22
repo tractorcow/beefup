@@ -7,6 +7,7 @@ import { formatRefsText } from "../security/refs.js";
 import { Ansi, ansiForSeverity, paint } from "./ansi.js";
 import {
   comparisonLabel,
+  formatFindingSources,
   introducedSummary,
   nestedPackageRoot,
   noIntroducedSummary,
@@ -181,7 +182,7 @@ export function renderText(
     parts.push("Introduced:");
     for (const item of introduced) {
       parts.push(
-        `  ! ${formatSeverity(item.severity, color)} ${formatFindingRefs(item)} ${item.packageName}`
+        `  ! ${formatSeverity(item.severity, color)} ${formatFindingRefs(item)} ${item.packageName} (${formatFindingSources(item)})`
       );
     }
   }
@@ -190,7 +191,7 @@ export function renderText(
     parts.push(`Unresolved (${unresolved.length}):`);
     for (const item of unresolved) {
       parts.push(
-        `  * ${formatSeverity(item.severity, color)} ${formatFindingRefs(item)} ${item.packageName}`
+        `  * ${formatSeverity(item.severity, color)} ${formatFindingRefs(item)} ${item.packageName} (${formatFindingSources(item)})`
       );
     }
   }

@@ -8,6 +8,7 @@ import { META_VULN_TITLE } from "../security/npm-audit.js";
 import {
   comparisonLabel,
   comparisonPathsLine,
+  formatFindingSources,
   introducedSummary,
   nestedPackageRoot,
   noIntroducedSummary,
@@ -166,9 +167,9 @@ function formatFindings(
   }
   const rows = findings.map((item) => {
     const titleText = item.title?.trim() || "—";
-    return `<tr><td><span class="badge ${severityClass(item.severity)}">${escapeHtml(item.severity)}</span></td><td>${escapeHtml(titleText)}</td><td>${formatFindingReferences(item)}</td><td><code>${escapeHtml(item.packageName)}</code></td></tr>`;
+    return `<tr><td><span class="badge ${severityClass(item.severity)}">${escapeHtml(item.severity)}</span></td><td>${escapeHtml(titleText)}</td><td>${formatFindingReferences(item)}</td><td><code>${escapeHtml(item.packageName)}</code></td><td>${escapeHtml(formatFindingSources(item))}</td></tr>`;
   });
-  return `<section class="findings ${kind}"><h3>${escapeHtml(title)} (${findings.length})</h3><p>${escapeHtml(intro)}</p><table><thead><tr><th>Severity</th><th>Title</th><th>References</th><th>Package</th></tr></thead><tbody>${rows.join("")}</tbody></table></section>`;
+  return `<section class="findings ${kind}"><h3>${escapeHtml(title)} (${findings.length})</h3><p>${escapeHtml(intro)}</p><table><thead><tr><th>Severity</th><th>Title</th><th>References</th><th>Package</th><th>Scanners</th></tr></thead><tbody>${rows.join("")}</tbody></table></section>`;
 }
 
 /**
