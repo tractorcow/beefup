@@ -67,7 +67,7 @@ export async function evaluatePolicy(
 
   const normalized = normalizeLockForOverrides(packageManager, lock);
   const overrides = [
-    ...findStaleOverridePins(pkg, normalized),
+    ...findStaleOverridePins(pkg, normalized, workspaceOverrides),
     ...findWorkspaceOverrideDrift(pkg, workspaceOverrides),
   ];
   const alignment = findAlignmentIssues(
