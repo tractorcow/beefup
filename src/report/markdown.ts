@@ -11,6 +11,7 @@ import { formatRefsMarkdown } from "../security/refs.js";
 import {
   comparisonLabel,
   comparisonPathsLine,
+  formatFindingSources,
   introducedSummary,
   nestedPackageRoot,
   noIntroducedSummary,
@@ -161,11 +162,11 @@ function formatFindings(
     "",
     intro,
     "",
-    "| Severity | Title | References | Package |",
-    "|----------|-------|------------|---------|",
+    "| Severity | Title | References | Package | Scanners |",
+    "|----------|-------|------------|---------|----------|",
     ...findings.map((item) => {
       const titleText = item.title?.trim() || "—";
-      return `| ${item.severity} | ${titleText} | ${formatFindingReferences(item)} | \`${item.packageName}\` |`;
+      return `| ${item.severity} | ${titleText} | ${formatFindingReferences(item)} | \`${item.packageName}\` | ${formatFindingSources(item)} |`;
     }),
   ];
   return rows.join("\n");

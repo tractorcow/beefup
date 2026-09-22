@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { SecuritySources } from "./classify.js";
 import { parseCveLiteJson } from "./cve-lite.js";
 import { META_VULN_TITLE, parseNpmAuditJson } from "./npm-audit.js";
 import {
@@ -42,7 +43,7 @@ describe("parseNpmAuditJson", () => {
     assert.equal(findings[0]?.refs[1]?.url, urlForCve("CVE-2021-23337"));
     assert.equal(findings[0]?.packageName, "lodash");
     assert.equal(findings[0]?.title, "Prototype pollution");
-    assert.equal(findings[0]?.source, "npm-audit");
+    assert.equal(findings[0]?.sources[0], SecuritySources.NpmAudit);
   });
 
   it("keeps meta-vulns with viaPackages and a fixed title", () => {
@@ -62,6 +63,32 @@ describe("parseNpmAuditJson", () => {
     assert.deepEqual(findings[0]?.viaPackages, ["express", "lodash"]);
     assert.deepEqual(findings[0]?.refs, []);
     assert.equal(findings[0]?.id, "npm:my-app");
+  });
+
+  it("parses pnpm / npm v6 advisories maps", () => {
+    const findings = parseNpmAuditJson(
+      JSON.stringify({
+        advisories: {
+          "1123526": {
+            id: 1123526,
+            title: "vite: server.fs.deny bypass",
+            module_name: "vite",
+            severity: "high",
+            github_advisory_id: "GHSA-fx2h-pf6j-xcff",
+            url: "https://github.com/advisories/GHSA-fx2h-pf6j-xcff",
+            findings: [{ version: "7.3.2" }],
+          },
+        },
+      })
+    );
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0]?.id, "GHSA-fx2h-pf6j-xcff");
+    assert.equal(findings[0]?.packageName, "vite");
+    assert.equal(findings[0]?.version, "7.3.2");
+    assert.equal(findings[0]?.severity, "high");
+    assert.equal(findings[0]?.title, "vite: server.fs.deny bypass");
+    assert.equal(findings[0]?.sources[0], SecuritySources.NpmAudit);
+    assert.equal(findings[0]?.refs[0]?.kind, AdvisoryRefKinds.Ghsa);
   });
 });
 
@@ -85,7 +112,38 @@ describe("parseCveLiteJson", () => {
     assert.ok(findings[0]?.refs.some((ref) => ref.id === "CVE-2024-1234"));
     assert.ok(findings[0]?.refs.some((ref) => ref.id === "OSV-2024-99"));
     assert.equal(findings[0]?.severity, "moderate");
-    assert.equal(findings[0]?.source, "cve-lite");
+    assert.equal(findings[0]?.sources[0], "cve-lite");
+  });
+
+  it("expands nested vulnerabilities and cves from a cve-lite scan file", () => {
+    const findings = parseCveLiteJson(
+      JSON.stringify({
+        findingCount: 1,
+        findings: [
+          {
+            package: "vite",
+            version: "7.3.2",
+            severity: "high",
+            cves: ["CVE-2026-53571"],
+            vulnerabilities: [
+              {
+                id: "GHSA-fx2h-pf6j-xcff",
+                aliases: ["CVE-2026-53571"],
+                summary: "vite: server.fs.deny bypass",
+                severity: "high",
+              },
+            ],
+          },
+        ],
+      })
+    );
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0]?.id, "GHSA-fx2h-pf6j-xcff");
+    assert.equal(findings[0]?.packageName, "vite");
+    assert.equal(findings[0]?.version, "7.3.2");
+    assert.equal(findings[0]?.title, "vite: server.fs.deny bypass");
+    assert.ok(findings[0]?.refs.some((ref) => ref.id === "CVE-2026-53571"));
+    assert.equal(findings[0]?.sources[0], "cve-lite");
   });
 });
 

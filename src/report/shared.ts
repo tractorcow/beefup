@@ -5,6 +5,7 @@ import {
 } from "../config/types.js";
 import { groupByChangeType } from "../diff/group.js";
 import { BEEFUP_DIR, BeefupSnapshots } from "../project/paths.js";
+import type { SecurityFinding } from "../security/classify.js";
 import type { StageReport } from "./types.js";
 
 /** Display titles for security finding buckets. */
@@ -72,6 +73,13 @@ export function introducedSummary(
     return `Warning: ${securityFindingCountLabel(count)} introduced versus prior`;
   }
   return `Warning: ${securityFindingCountLabel(count)} introduced — review before accept`;
+}
+
+/**
+ * Joins scanner names for a finding, e.g. `npm-audit, cve-lite`.
+ */
+export function formatFindingSources(finding: SecurityFinding): string {
+  return finding.sources.join(", ");
 }
 
 /**

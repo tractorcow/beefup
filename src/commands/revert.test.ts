@@ -16,8 +16,11 @@ import { inProgressPath, priorDir, stagedDir } from "../project/paths.js";
 import { PackageManagers } from "../project/types.js";
 
 const runner: ProcessRunner = {
-  async run() {
-    return { stdout: "", stderr: "", code: 0 };
+  async run(_bin, args) {
+    if (args.includes("audit")) {
+      return { stdout: '{"vulnerabilities":{}}', stderr: "", code: 0 };
+    }
+    return { stdout: "[]", stderr: "", code: 0 };
   },
 };
 
@@ -95,7 +98,10 @@ describe("runRevert", () => {
       const recordingRunner: ProcessRunner = {
         async run(_bin, args, cwd) {
           calls.push({ args, cwd });
-          return { stdout: "", stderr: "", code: 0 };
+          if (args.includes("audit")) {
+            return { stdout: '{"vulnerabilities":{}}', stderr: "", code: 0 };
+          }
+          return { stdout: "[]", stderr: "", code: 0 };
         },
       };
       try {

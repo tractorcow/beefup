@@ -1,4 +1,4 @@
-import type { AdvisoryRef } from "./refs.js";
+import { dedupeRefs, type AdvisoryRef } from "./refs.js";
 
 /** Closed set of vulnerability severities used in security reports. */
 export const FindingSeverities = {
@@ -36,7 +36,8 @@ export interface SecurityFinding {
   packageName: string;
   version?: string;
   severity: FindingSeverity;
-  source: SecuritySource;
+  /** Scanners that reported this finding (more than one when they share an id). */
+  sources: SecuritySource[];
   title?: string;
 }
 
@@ -53,6 +54,12 @@ const SEVERITY_ORDER: FindingSeverity[] = [
   FindingSeverities.Moderate,
   FindingSeverities.Low,
   FindingSeverities.Info,
+];
+
+/** Canonical scanner order for merged `sources` lists in reports. */
+const SOURCE_ORDER: SecuritySource[] = [
+  SecuritySources.NpmAudit,
+  SecuritySources.CveLite,
 ];
 
 /**
@@ -81,9 +88,73 @@ export function normalizeSeverity(raw: string | undefined): FindingSeverity {
 export function isMetaFinding(finding: SecurityFinding): boolean {
   return (
     finding.refs.length === 0 &&
-    finding.source === SecuritySources.NpmAudit &&
+    finding.sources.includes(SecuritySources.NpmAudit) &&
     (finding.viaPackages?.length ?? 0) > 0
   );
+}
+
+/**
+ * Sorts scanner names into a stable report order.
+ */
+function sortSources(sources: SecuritySource[]): SecuritySource[] {
+  return [...new Set(sources)].sort(
+    (a, b) => SOURCE_ORDER.indexOf(a) - SOURCE_ORDER.indexOf(b)
+  );
+}
+
+/**
+ * Picks the more severe of two finding severities.
+ */
+function worseSeverity(a: FindingSeverity, b: FindingSeverity): FindingSeverity {
+  return SEVERITY_ORDER.indexOf(a) <= SEVERITY_ORDER.indexOf(b) ? a : b;
+}
+
+/**
+ * Prefers a non-empty title; if both exist, keeps the longer description.
+ */
+function pickTitle(left?: string, right?: string): string | undefined {
+  const a = left?.trim() ?? "";
+  const b = right?.trim() ?? "";
+  if (!a) {
+    return b || undefined;
+  }
+  if (!b) {
+    return a;
+  }
+  return a.length >= b.length ? a : b;
+}
+
+/**
+ * Merges two findings that share an id and package name.
+ * Unions scanners and refs instead of letting the later scanner overwrite.
+ */
+function mergeFinding(a: SecurityFinding, b: SecurityFinding): SecurityFinding {
+  const via = [
+    ...new Set([...(a.viaPackages ?? []), ...(b.viaPackages ?? [])]),
+  ].sort((left, right) => left.localeCompare(right));
+  return {
+    id: a.id,
+    refs: dedupeRefs([...a.refs, ...b.refs]),
+    viaPackages: via.length > 0 ? via : undefined,
+    packageName: a.packageName,
+    version: a.version ?? b.version,
+    severity: worseSeverity(a.severity, b.severity),
+    sources: sortSources([...a.sources, ...b.sources]),
+    title: pickTitle(a.title, b.title),
+  };
+}
+
+/**
+ * Collapses findings with the same id and package, recording every scanner.
+ */
+export function mergeFindings(findings: SecurityFinding[]): SecurityFinding[] {
+  const map = new Map<string, SecurityFinding>();
+  for (const item of findings) {
+    const key = findingKey(item);
+    const existing = map.get(key);
+    map.set(key, existing ? mergeFinding(existing, item) : item);
+  }
+  return [...map.values()];
 }
 
 /**
@@ -115,8 +186,12 @@ export function classifyFindings(
   before: SecurityFinding[],
   after: SecurityFinding[]
 ): ClassifiedFindings {
-  const beforeMap = new Map(before.map((item) => [findingKey(item), item]));
-  const afterMap = new Map(after.map((item) => [findingKey(item), item]));
+  const beforeMap = new Map(
+    mergeFindings(before).map((item) => [findingKey(item), item])
+  );
+  const afterMap = new Map(
+    mergeFindings(after).map((item) => [findingKey(item), item])
+  );
   const fixed: SecurityFinding[] = [];
   const introduced: SecurityFinding[] = [];
   const unresolved: SecurityFinding[] = [];
