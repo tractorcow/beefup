@@ -5,6 +5,7 @@ import {
   AlignmentActions,
   BannedRangeTags,
   DEFAULT_CONFIG,
+  isFailure,
 } from "../config/types.js";
 import { findRangeIssues } from "./ranges.js";
 
@@ -21,7 +22,7 @@ describe("findRangeIssues", () => {
       "package.json"
     );
     assert.equal(
-      findings.filter((item) => item.severity === AlignmentActions.Error).length,
+      findings.filter(isFailure).length,
       2
     );
   });

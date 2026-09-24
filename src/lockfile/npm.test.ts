@@ -55,5 +55,56 @@ describe("npm lockfile resolver", () => {
     assert.equal(root.has("react"), false);
     const web = lockedVersionsFromNpm(lock, "apps/web");
     assert.equal(web.get("react"), "18.2.0");
+    assert.equal(web.get("express"), "4.18.2");
+  });
+
+  it("uses hoisted root installs for npm workspace importers", () => {
+    const lock = parseNpmLockfile(
+      JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          "": { version: "1.0.0" },
+          "apps/customer": { version: "0.0.0" },
+          "node_modules/react": { version: "19.3.0" },
+          "node_modules/next": { version: "16.3.6" },
+        },
+      })
+    );
+    const customer = lockedVersionsFromNpm(lock, "apps/customer");
+    assert.equal(customer.get("react"), "19.3.0");
+    assert.equal(customer.get("next"), "16.3.6");
+  });
+
+  it("lets a nested install overlay a hoisted package", () => {
+    const lock = parseNpmLockfile(
+      JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          "node_modules/react": { version: "19.0.0" },
+          "apps/web/node_modules/react": { version: "18.2.0" },
+        },
+      })
+    );
+    assert.equal(lockedVersionsFromNpm(lock, ".").get("react"), "19.0.0");
+    assert.equal(lockedVersionsFromNpm(lock, "apps/web").get("react"), "18.2.0");
+  });
+
+  it("follows workspace link entries to the linked package version", () => {
+    const lock = parseNpmLockfile(
+      JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          "node_modules/@wc/typescript-config": {
+            resolved: "packages/typescript-config",
+            link: true,
+          },
+          "packages/typescript-config": { version: "0.0.0" },
+        },
+      })
+    );
+    const root = lockedVersionsFromNpm(lock, ".");
+    assert.equal(root.get("@wc/typescript-config"), "0.0.0");
+    const customer = lockedVersionsFromNpm(lock, "apps/customer");
+    assert.equal(customer.get("@wc/typescript-config"), "0.0.0");
   });
 });

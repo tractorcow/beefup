@@ -14,6 +14,10 @@ export interface Resolution {
 
 export interface NpmLockfileDependency {
   version?: string;
+  /** True when this `packages` entry is a workspace symlink. */
+  link?: boolean;
+  /** Workspace path or tarball URL this entry resolves to. */
+  resolved?: string;
   dev?: boolean;
   optional?: boolean;
   dependencies?: Record<string, NpmLockfileDependency>;
