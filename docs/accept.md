@@ -37,7 +37,9 @@ beefup accept --package-root ./app
 
 ## Failures
 
-Accept **fails** when there is no staged lockfile, an in-place stage is in progress, Safe Chain is missing (unless `--no-safe-chain`), staged policy has errors (banned `latest`/`*`, stale override pins, alignment mismatches), or the frozen install exits non-zero.
+Accept **fails** when there is no staged lockfile, an in-place stage is in progress, Safe Chain is missing (unless `--no-safe-chain`), staged policy has errors (banned `latest`/`*`, banned `latest` overrides, override-value drift, alignment mismatches), or the frozen install exits non-zero.
+
+Override pins below a requested range warn and do **not** fail accept.
 
 If the install fails after files were copied, the live manifests and lockfile stay at the accepted versions and `.beefup/staged` is already gone. Fix the installer error, or run `beefup revert` to restore `.beefup/prior`. A second `beefup accept` will not work until you `stage` again.
 

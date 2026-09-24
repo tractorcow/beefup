@@ -37,6 +37,13 @@ export const AlignmentActions = {
 export type AlignmentAction =
   (typeof AlignmentActions)[keyof typeof AlignmentActions];
 
+/**
+ * Returns true when a policy finding is error-severity and should fail the command.
+ */
+export function isFailure(item: { severity: AlignmentAction }): boolean {
+  return item.severity === AlignmentActions.Error;
+}
+
 /** Floating tags/ranges that projects may ban in dependency specs. */
 export const BannedRangeTags = {
   Latest: UpgradeModes.Latest,

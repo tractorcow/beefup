@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { parse as parseYaml } from "yaml";
 
-import { AlignmentActions, type BeefupConfig } from "../config/types.js";
+import { AlignmentActions, isFailure, type BeefupConfig } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { pathExists, readJsonFile } from "../fsutil.js";
 import { parseNpmLockfile } from "../lockfile/npm.js";
@@ -82,6 +82,9 @@ export async function evaluatePolicy(
     ...ranges
       .filter((item) => item.severity === AlignmentActions.Warn)
       .map((item) => item.message),
+    ...overrides
+      .filter((item) => item.severity === AlignmentActions.Warn)
+      .map((item) => `[${item.override}] ${item.message}`),
     ...alignment
       .filter((item) => item.severity === AlignmentActions.Warn)
       .map((item) => `[${item.group}] ${item.message}`),
@@ -95,12 +98,12 @@ export async function evaluatePolicy(
  */
 export function assertPolicy(result: PolicyResult): void {
   const errors = [
-    ...result.ranges
-      .filter((item) => item.severity === AlignmentActions.Error)
-      .map((item) => item.message),
-    ...result.overrides.map((item) => `[${item.override}] ${item.message}`),
+    ...result.ranges.filter(isFailure).map((item) => item.message),
+    ...result.overrides
+      .filter(isFailure)
+      .map((item) => `[${item.override}] ${item.message}`),
     ...result.alignment
-      .filter((item) => item.severity === AlignmentActions.Error)
+      .filter(isFailure)
       .map((item) => `[${item.group}] ${item.message}`),
   ];
   if (errors.length > 0) {

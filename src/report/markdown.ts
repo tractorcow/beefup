@@ -1,4 +1,3 @@
-import { AlignmentActions } from "../config/types.js";
 import { formatUniqueVersions } from "../diff/diff.js";
 import { groupByChangeType } from "../diff/group.js";
 import {
@@ -230,7 +229,7 @@ function formatPolicy(report: StageReport): string {
     parts.push(`- **${item.severity}** ${item.message}`);
   }
   for (const item of report.overrides) {
-    parts.push(`- **${AlignmentActions.Error}** [${item.override}] ${item.message}`);
+    parts.push(`- **${item.severity}** [${item.override}] ${item.message}`);
   }
   for (const item of report.alignment) {
     parts.push(`- **${item.severity}** [${item.group}] ${item.message}`);
