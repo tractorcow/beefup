@@ -55,4 +55,53 @@ describe("repinWorkspace", () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it("re-pins pnpm workspace packages from nested importer entries", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-repin-pnpm-"));
+    try {
+      await writeJsonFile(path.join(dir, "package.json"), {
+        name: "root",
+        private: true,
+      });
+      await writeFile(
+        path.join(dir, "pnpm-workspace.yaml"),
+        "packages:\n  - apps/*\n"
+      );
+      await writeJsonFile(path.join(dir, "apps/web/package.json"), {
+        name: "web",
+        dependencies: {
+          react: "^18.2.0",
+          "@workspace/ui": "workspace:*",
+        },
+      });
+      await writeFile(
+        path.join(dir, LockfileNames.Pnpm),
+        `lockfileVersion: '9.0'
+importers:
+  apps/web:
+    dependencies:
+      react:
+        specifier: ^18.2.0
+        version: 18.3.1
+      '@workspace/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+`
+      );
+
+      await repinWorkspace(
+        dir,
+        lockfilePathFor(dir, LockfileNames.Pnpm),
+        PackageManagers.Pnpm
+      );
+
+      const web = await readJsonFile<PackageJson>(
+        path.join(dir, "apps/web/package.json")
+      );
+      assert.equal(web.dependencies?.react, "18.3.1");
+      assert.equal(web.dependencies?.["@workspace/ui"], "workspace:*");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });

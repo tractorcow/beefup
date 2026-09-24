@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 
 import { parse as parseYaml } from "yaml";
 
+import { DefaultPackageRoot } from "../config/types.js";
 import type {
   LockPackage,
   PnpmImporterDep,
@@ -146,13 +147,19 @@ function importerVersion(value: PnpmImporterDep | string | undefined): string | 
 
 /**
  * Maps direct dependency names to locked versions for one pnpm importer path.
+ * Each workspace package has its own importer entry, so hoisted installs are
+ * not consulted. Workspace `link:` targets are omitted; `workspace:*` specs
+ * stay as protocol ranges during re-pin.
  */
 export function lockedVersionsFromPnpm(
   lockfile: PnpmLockfile,
   importerDir: string
 ): Map<string, string> {
   const locked = new Map<string, string>();
-  const key = importerDir === "." ? "." : importerDir.replace(/\\/g, "/");
+  const key =
+    importerDir === DefaultPackageRoot || importerDir === ""
+      ? DefaultPackageRoot
+      : importerDir.replace(/\\/g, "/");
   const importer = lockfile.importers?.[key];
   if (!importer) {
     return locked;
