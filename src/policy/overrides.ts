@@ -1,6 +1,6 @@
 import semver from "semver";
 
-import { BannedRangeTags } from "../config/types.js";
+import { AlignmentActions, BannedRangeTags, type AlignmentAction } from "../config/types.js";
 import { stripPnpmPeerSuffix } from "../lockfile/pnpm.js";
 import type { NpmLockfile, PnpmLockfile } from "../lockfile/types.js";
 import type { PackageJson } from "../project/package-json.js";
@@ -9,6 +9,8 @@ import { PackageManagers, type PackageManager } from "../project/types.js";
 export interface OverrideFinding {
   override: string;
   message: string;
+  /** Error fails accept/report; warn is recorded but does not block. */
+  severity: AlignmentAction;
 }
 
 const BANNED_OVERRIDE_TAGS: Set<string> = new Set([BannedRangeTags.Latest]);
@@ -325,6 +327,7 @@ function mergeOverrideMaps(
 /**
  * Finds override pins that are banned floating tags or below requested ranges.
  * Checks package.json overrides and, when given, pnpm-workspace.yaml overrides.
+ * Pins below a requested range warn; banned tags and unparseable targets error.
  */
 export function findStaleOverridePins(
   pkg: PackageJson,
@@ -347,6 +350,7 @@ export function findStaleOverridePins(
       errors.push({
         override: label,
         message: err instanceof Error ? err.message : String(err),
+        severity: AlignmentActions.Error,
       });
       continue;
     }
@@ -355,6 +359,7 @@ export function findStaleOverridePins(
       errors.push({
         override: label,
         message: `pin must not use floating tag "${BannedRangeTags.Latest}" (got ${target.raw}); pin a concrete semver version instead`,
+        severity: AlignmentActions.Error,
       });
       continue;
     }
@@ -393,6 +398,7 @@ export function findStaleOverridePins(
             `pin ${pin.logicalName}@${target.version} is below ` +
             `${req.from} → ${pin.logicalName}@${req.range}` +
             (minimum ? ` (minimum ${minimum.version})` : ""),
+          severity: AlignmentActions.Warn,
         });
       }
     }
@@ -425,6 +431,7 @@ export function findWorkspaceOverrideDrift(
         message:
           `package.json#overrides and pnpm-workspace.yaml#overrides disagree ` +
           `(package.json=${left}, workspace=${right})`,
+        severity: AlignmentActions.Error,
       });
     }
   }

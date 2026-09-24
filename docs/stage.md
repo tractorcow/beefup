@@ -71,6 +71,6 @@ See [configuration](configuration.md) for the shared schema (`.beefup.json`, `pa
 
 ## Failures and warnings
 
-Stage **fails** when Safe Chain is missing (unless `--no-safe-chain`), lockfile regeneration fails, `latest` or `*` remain after re-pin, or an override pin sits below a version the lockfile requires. Alignment mismatches fail unless configured to warn.
+Stage **fails** when Safe Chain is missing (unless `--no-safe-chain`), lockfile regeneration fails, `latest` or `*` remain after re-pin, an override uses a banned `latest` tag, or package.json and pnpm workspace overrides disagree on a shared key. Alignment mismatches fail unless configured to warn.
 
-Leftover loose ranges (for example `^1.2.3`) warn when `preferExact` is true. Introduced CVEs are printed loudly and listed in the report; they do **not** fail stage. Review `.beefup/staged` before `beefup accept`.
+Leftover loose ranges (for example `^1.2.3`) warn when `preferExact` is true. Override pins below a requested range also warn and do **not** fail stage. Introduced CVEs are printed loudly and listed in the report; they do **not** fail stage. Review `.beefup/staged` before `beefup accept`.

@@ -1,4 +1,4 @@
-import { AlignmentActions } from "../config/types.js";
+import { isFailure } from "../config/types.js";
 import { formatUniqueVersions } from "../diff/diff.js";
 import { groupByChangeType } from "../diff/group.js";
 import { PackageChangeTypes, type PackageChange } from "../diff/types.js";
@@ -199,17 +199,13 @@ export function renderText(
   parts.push(...formatChanges("DEPENDENCIES", report.diff.dependencies, color));
   parts.push(...formatChanges("DEV DEPENDENCIES", report.diff.devDependencies, color));
 
-  for (const item of report.ranges.filter(
-    (finding) => finding.severity === AlignmentActions.Error
-  )) {
+  for (const item of report.ranges.filter(isFailure)) {
     parts.push(paint(Ansi.Red, `error: ${item.message}`, color));
   }
-  for (const item of report.overrides) {
+  for (const item of report.overrides.filter(isFailure)) {
     parts.push(paint(Ansi.Red, `error: [${item.override}] ${item.message}`, color));
   }
-  for (const item of report.alignment.filter(
-    (finding) => finding.severity === AlignmentActions.Error
-  )) {
+  for (const item of report.alignment.filter(isFailure)) {
     parts.push(paint(Ansi.Red, `error: [${item.group}] ${item.message}`, color));
   }
   for (const warning of report.warnings) {

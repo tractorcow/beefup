@@ -72,6 +72,6 @@ Introduced findings print a stderr warning pointing at `.beefup/staged` (proposa
 
 ## Failures
 
-Report **fails** when there is no staged or prior lockfile, Safe Chain is missing (unless `--no-safe-chain`), cve-lite cannot run, a lockfile cannot be parsed, or the after-tree policy has errors (banned `latest`/`*`, stale override pins, alignment mismatches unless configured to warn).
+Report **fails** when there is no staged or prior lockfile, Safe Chain is missing (unless `--no-safe-chain`), cve-lite cannot run, a lockfile cannot be parsed, or the after-tree policy has errors (banned `latest`/`*`, banned `latest` overrides, override-value drift, alignment mismatches unless configured to warn). Override pins below a requested range warn and do **not** fail report.
 
 Introduced findings do **not** fail report. Review them before `beefup accept`.
