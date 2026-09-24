@@ -26,6 +26,7 @@ export async function rewriteWorkspace(
 
 /**
  * Re-pins every workspace package.json to exact versions from the given lockfile.
+ * npm workspaces resolve hoisted root installs and workspace links.
  */
 export async function repinWorkspace(
   root: string,

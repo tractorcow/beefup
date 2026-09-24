@@ -1,11 +1,15 @@
 import { readFile } from "node:fs/promises";
 
+import { DefaultPackageRoot } from "../config/types.js";
 import type {
   LockPackage,
   NpmLockfile,
   NpmLockfileDependency,
   Resolution,
 } from "./types.js";
+
+/** npm lockfile `packages` key prefix for a physical install. */
+const NODE_MODULES_PREFIX = "node_modules/";
 
 /**
  * Derives a package name from an npm `packages` key (including nested installs).
@@ -14,7 +18,7 @@ function packageNameFromPackagesKey(key: string): string | null {
   if (key === "") {
     return null;
   }
-  const marker = "node_modules/";
+  const marker = NODE_MODULES_PREFIX;
   const index = key.lastIndexOf(marker);
   if (index === -1) {
     return null;
@@ -171,7 +175,62 @@ export async function resolveNpmLockfile(filePath: string): Promise<Resolution> 
 }
 
 /**
- * Maps direct (non-nested) package names to locked versions for one npm importer path.
+ * Returns true when `importerDir` is the workspace root (`""` or `.`).
+ */
+function isRootImporter(importerDir: string): boolean {
+  return importerDir === DefaultPackageRoot || importerDir === "";
+}
+
+/**
+ * Ancestor importer dirs from workspace root down to `importerDir`.
+ * Nested installs overlay hoisted ones when collecting locked versions.
+ */
+function npmImporterAncestry(importerDir: string): string[] {
+  const dir = importerDir.replace(/\\/g, "/");
+  if (isRootImporter(dir)) {
+    return [DefaultPackageRoot];
+  }
+  const parts = dir.split("/").filter(Boolean);
+  const dirs: string[] = [DefaultPackageRoot];
+  for (let i = 0; i < parts.length; i++) {
+    dirs.push(parts.slice(0, i + 1).join("/"));
+  }
+  return dirs;
+}
+
+/**
+ * npm lockfile `packages` key prefix for installs under an importer directory.
+ */
+function npmNodeModulesPrefix(importerDir: string): string {
+  if (isRootImporter(importerDir)) {
+    return NODE_MODULES_PREFIX;
+  }
+  return `${importerDir.replace(/\\/g, "/")}/${NODE_MODULES_PREFIX}`;
+}
+
+/**
+ * Resolves a lockfile `packages` entry to a concrete version, following workspace links.
+ */
+function npmLockedVersion(
+  packages: Record<string, NpmLockfileDependency>,
+  meta: NpmLockfileDependency | undefined
+): string | undefined {
+  if (!meta) {
+    return undefined;
+  }
+  if (meta.version) {
+    return meta.version;
+  }
+  if (meta.link === true && typeof meta.resolved === "string") {
+    return packages[meta.resolved]?.version;
+  }
+  return undefined;
+}
+
+/**
+ * Maps package names to locked versions for one npm importer path.
+ * Walks from the workspace root so hoisted installs are visible to nested
+ * workspaces; a nested `node_modules` entry overlays a hoisted one.
  */
 export function lockedVersionsFromNpm(
   lockfile: NpmLockfile,
@@ -179,23 +238,21 @@ export function lockedVersionsFromNpm(
 ): Map<string, string> {
   const locked = new Map<string, string>();
   const packages = lockfile.packages ?? {};
-  const prefix =
-    importerDir === "." || importerDir === ""
-      ? "node_modules/"
-      : `${importerDir.replace(/\\/g, "/")}/node_modules/`;
-
-  for (const [key, meta] of Object.entries(packages)) {
-    if (!meta?.version) {
-      continue;
+  for (const dir of npmImporterAncestry(importerDir)) {
+    const prefix = npmNodeModulesPrefix(dir);
+    for (const [key, meta] of Object.entries(packages)) {
+      if (!key.startsWith(prefix)) {
+        continue;
+      }
+      const rest = key.slice(prefix.length);
+      if (rest.includes(`/${NODE_MODULES_PREFIX}`)) {
+        continue;
+      }
+      const version = npmLockedVersion(packages, meta);
+      if (version) {
+        locked.set(rest, version);
+      }
     }
-    if (!key.startsWith(prefix)) {
-      continue;
-    }
-    const rest = key.slice(prefix.length);
-    if (rest.includes("/node_modules/")) {
-      continue;
-    }
-    locked.set(rest, meta.version);
   }
   return locked;
 }
