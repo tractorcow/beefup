@@ -15,6 +15,14 @@ export const SafeChainBins = {
   AikidoPnpm: "aikido-pnpm",
 } as const;
 
+/**
+ * Safe Chain CLI flags Beefup passes so wrapper status lines do not pollute
+ * machine-readable package-manager output (e.g. `audit --json`).
+ */
+export const SafeChainCliFlags = {
+  LoggingSilent: "--safe-chain-logging=silent",
+} as const;
+
 /** Package-manager binary and extra argv prefix used for lockfile and install commands. */
 export interface ProtectedPm {
   bin: string;
@@ -53,6 +61,8 @@ async function which(bin: string): Promise<string | undefined> {
 /**
  * Locates a Safe Chain–protected package manager binary and prefix args.
  * With `noSafeChain`, uses the raw npm/pnpm binary instead of requiring a wrapper.
+ * Protected wrappers always get `--safe-chain-logging=silent` so status banners
+ * do not break JSON parsing of commands such as `audit --json`.
  */
 export async function resolveProtectedPm(
   packageManager: PackageManager,
@@ -67,13 +77,16 @@ export async function resolveProtectedPm(
   const aikido = await which(aikidoBinName(packageManager));
   if (aikido) {
     getLogger().info(`using ${aikido}`);
-    return { bin: aikido, prefixArgs: [] };
+    return { bin: aikido, prefixArgs: [SafeChainCliFlags.LoggingSilent] };
   }
 
   const safeChain = await which(SafeChainBins.Wrapper);
   if (safeChain) {
     getLogger().info(`using ${safeChain} ${packageManager}`);
-    return { bin: safeChain, prefixArgs: [packageManager] };
+    return {
+      bin: safeChain,
+      prefixArgs: [packageManager, SafeChainCliFlags.LoggingSilent],
+    };
   }
 
   throw new BeefupError(
