@@ -5,7 +5,12 @@ import { withIsolatedPathStubs } from "../__tests__/with-safe-chain-stubs.js";
 import { CliOptionFlags } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { PackageManagers } from "../project/types.js";
-import { aikidoBinName, resolveProtectedPm, SafeChainBins } from "./safe-chain.js";
+import {
+  aikidoBinName,
+  resolveProtectedPm,
+  SafeChainBins,
+  SafeChainCliFlags,
+} from "./safe-chain.js";
 import { lockfileUpdateArgs } from "./update.js";
 
 describe("safe-chain helpers", () => {
@@ -39,6 +44,25 @@ describe("safe-chain helpers", () => {
         assert.match(error.message, /Safe-chain is not enabled/);
         return true;
       });
+    });
+  });
+
+  it("passes silent logging when resolving aikido wrappers", async () => {
+    await withIsolatedPathStubs([SafeChainBins.AikidoPnpm], async () => {
+      const pm = await resolveProtectedPm(PackageManagers.Pnpm);
+      assert.match(pm.bin, new RegExp(`${SafeChainBins.AikidoPnpm}$`));
+      assert.deepEqual(pm.prefixArgs, [SafeChainCliFlags.LoggingSilent]);
+    });
+  });
+
+  it("passes silent logging when resolving the safe-chain wrapper", async () => {
+    await withIsolatedPathStubs([SafeChainBins.Wrapper], async () => {
+      const pm = await resolveProtectedPm(PackageManagers.Npm);
+      assert.match(pm.bin, new RegExp(`${SafeChainBins.Wrapper}$`));
+      assert.deepEqual(pm.prefixArgs, [
+        PackageManagers.Npm,
+        SafeChainCliFlags.LoggingSilent,
+      ]);
     });
   });
 
