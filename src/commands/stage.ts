@@ -29,6 +29,8 @@ export interface StageOptions {
   format: ReportFormat;
   /** When true, skip Safe Chain and use npm/pnpm directly. */
   noSafeChain?: boolean;
+  /** When true, leave override pins unchanged (overrides CLI/config default). */
+  preserveOverrides?: boolean;
   runner?: ProcessRunner;
 }
 
@@ -50,6 +52,8 @@ export async function runStage(options: StageOptions): Promise<StageReport> {
     packageRoot.absolute,
     options.mode
   );
+  const preserveOverrides =
+    options.preserveOverrides === true || config.preserveOverrides;
   log.info(
     `staging ${packageRoot.relative} with ${project.packageManager} (${options.strategy}, ${config.mode})`
   );
@@ -81,7 +85,7 @@ export async function runStage(options: StageOptions): Promise<StageReport> {
       strategy.prepare()
     );
     await log.timed("rewriting version constraints", () =>
-      rewriteWorkspace(workspace.root, config.mode)
+      rewriteWorkspace(workspace.root, config.mode, { preserveOverrides })
     );
     await log.timed("regenerating lockfile", () =>
       regenerateLockfile({
@@ -95,7 +99,8 @@ export async function runStage(options: StageOptions): Promise<StageReport> {
       repinWorkspace(
         workspace.root,
         lockfilePathFor(workspace.root, project.lockfileName),
-        project.packageManager
+        project.packageManager,
+        { preserveOverrides }
       )
     );
     await log.timed("collecting staged outputs", () =>

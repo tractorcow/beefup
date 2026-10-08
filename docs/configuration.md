@@ -14,7 +14,7 @@ Later sources win on conflict:
 4. Repo `pnpm-workspace.yaml#beefup`
 5. The package being upgraded: `package.json#beefup`
 6. That package’s `pnpm-workspace.yaml#beefup`
-7. CLI `--mode`
+7. CLI `--mode` (and `--preserve-overrides`, which forces preserve on when passed)
 
 When the package root is `.`, the repo and package files are the same path and are not applied twice.
 
@@ -25,6 +25,7 @@ When the package root is `.`, the repo and package files are the same path and a
   "mode": "same-major",
   "bannedRanges": ["latest", "*"],
   "preferExact": true,
+  "preserveOverrides": false,
   "alignment": "error",
   "alignedGroups": [
     {
@@ -42,6 +43,7 @@ When the package root is `.`, the repo and package files are the same path and a
 | `mode` | `same-major`, `latest` | `same-major` | Constraint rewrite before lockfile regeneration. CLI `--mode` overrides this. |
 | `bannedRanges` | string[] | `["latest", "*"]` | Dependency specs that fail policy after re-pin. |
 | `preferExact` | boolean | `true` | Warn when a leftover range such as `^1.2.3` remains. |
+| `preserveOverrides` | boolean | `false` | When `true`, leave `overrides` unchanged during stage. When `false`, rewrite and re-pin override targets like direct deps. CLI `--preserve-overrides` forces `true`. |
 | `alignment` | `error`, `warn` | `error` | Default for aligned-group mismatches. |
 | `alignedGroups` | object[] | `[]` | Groups of packages that must share a version; `onMismatch` may override `alignment` per group. |
 | `packageRoot` | string or string[] | `.` | Package directories (literal paths or globs) relative to the config file. Each must contain `package.json` and a lockfile. |

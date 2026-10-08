@@ -33,6 +33,21 @@ describe("parseCliArgs", () => {
     assert.equal(args.noSafeChain, true);
   });
 
+  it("parses --preserve-overrides", () => {
+    const args = parseCliArgs([
+      "node",
+      "beefup",
+      CliCommands.Stage,
+      CliOptionFlags.PreserveOverrides,
+    ]);
+    assert.equal(args.preserveOverrides, true);
+  });
+
+  it("defaults preserveOverrides to false", () => {
+    const args = parseCliArgs(["node", "beefup", CliCommands.Stage]);
+    assert.equal(args.preserveOverrides, false);
+  });
+
   it("parses report command", () => {
     const args = parseCliArgs([
       "node",
@@ -165,6 +180,10 @@ describe("parseCliArgs", () => {
 
   it("lists --no-safe-chain in help text", () => {
     assert.match(showHelp(), new RegExp(CliOptionFlags.NoSafeChain));
+  });
+
+  it("lists --preserve-overrides in help text", () => {
+    assert.match(showHelp(), new RegExp(CliOptionFlags.PreserveOverrides));
   });
 
   it("parses quiet, verbose, debug, and log-level", () => {

@@ -4,10 +4,11 @@ import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 
+import { UpgradeModes } from "../config/types.js";
 import { readJsonFile, writeJsonFile } from "../fsutil.js";
 import type { PackageJson } from "../project/package-json.js";
 import { LockfileNames, PackageManagers } from "../project/types.js";
-import { lockfilePathFor, repinWorkspace } from "./workspace.js";
+import { lockfilePathFor, repinWorkspace, rewriteWorkspace } from "./workspace.js";
 
 describe("repinWorkspace", () => {
   it("re-pins npm workspace packages from hoisted lockfile installs", async () => {
@@ -17,6 +18,7 @@ describe("repinWorkspace", () => {
         name: "root",
         workspaces: ["apps/*"],
         devDependencies: { "@wc/config": "^0.0.0" },
+        overrides: { axios: "^1.18.1" },
       });
       await writeJsonFile(path.join(dir, "apps/web/package.json"), {
         name: "web",
@@ -30,6 +32,7 @@ describe("repinWorkspace", () => {
             "": { version: "1.0.0" },
             "apps/web": { version: "1.0.0" },
             "node_modules/react": { version: "18.3.1" },
+            "node_modules/axios": { version: "1.19.0" },
             "node_modules/@wc/config": {
               resolved: "packages/config",
               link: true,
@@ -50,7 +53,43 @@ describe("repinWorkspace", () => {
         path.join(dir, "apps/web/package.json")
       );
       assert.equal(root.devDependencies?.["@wc/config"], "0.0.0");
+      assert.equal(root.overrides?.axios, "1.19.0");
       assert.equal(web.dependencies?.react, "18.3.1");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("leaves overrides unchanged when preserveOverrides is set", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-repin-preserve-"));
+    try {
+      await writeJsonFile(path.join(dir, "package.json"), {
+        name: "root",
+        dependencies: { leftpad: "^1.0.0" },
+        overrides: { axios: "^1.18.1" },
+      });
+      await writeFile(
+        path.join(dir, LockfileNames.Npm),
+        `${JSON.stringify({
+          lockfileVersion: 3,
+          packages: {
+            "": { version: "1.0.0" },
+            "node_modules/leftpad": { version: "1.3.0" },
+            "node_modules/axios": { version: "1.19.0" },
+          },
+        })}\n`
+      );
+
+      await repinWorkspace(
+        dir,
+        lockfilePathFor(dir, LockfileNames.Npm),
+        PackageManagers.Npm,
+        { preserveOverrides: true }
+      );
+
+      const root = await readJsonFile<PackageJson>(path.join(dir, "package.json"));
+      assert.equal(root.dependencies?.leftpad, "1.3.0");
+      assert.equal(root.overrides?.axios, "^1.18.1");
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -100,6 +139,40 @@ importers:
       );
       assert.equal(web.dependencies?.react, "18.3.1");
       assert.equal(web.dependencies?.["@workspace/ui"], "workspace:*");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("rewriteWorkspace", () => {
+  it("rewrites override pins unless preserveOverrides is set", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-rewrite-ov-"));
+    try {
+      await writeJsonFile(path.join(dir, "package.json"), {
+        name: "root",
+        dependencies: { leftpad: "1.0.0" },
+        overrides: { axios: "1.18.1" },
+      });
+
+      await rewriteWorkspace(dir, UpgradeModes.SameMajor);
+      const eager = await readJsonFile<PackageJson>(path.join(dir, "package.json"));
+      assert.equal(eager.dependencies?.leftpad, "^1.0.0");
+      assert.equal(eager.overrides?.axios, "^1.18.1");
+
+      await writeJsonFile(path.join(dir, "package.json"), {
+        name: "root",
+        dependencies: { leftpad: "1.0.0" },
+        overrides: { axios: "1.18.1" },
+      });
+      await rewriteWorkspace(dir, UpgradeModes.SameMajor, {
+        preserveOverrides: true,
+      });
+      const preserved = await readJsonFile<PackageJson>(
+        path.join(dir, "package.json")
+      );
+      assert.equal(preserved.dependencies?.leftpad, "^1.0.0");
+      assert.equal(preserved.overrides?.axios, "1.18.1");
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

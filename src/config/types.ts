@@ -71,6 +71,7 @@ export const CliOptionFlags = {
   Format: "--format",
   PackageRoot: "--package-root",
   NoSafeChain: "--no-safe-chain",
+  PreserveOverrides: "--preserve-overrides",
   Quiet: "--quiet",
   QuietShort: "-q",
   Verbose: "--verbose",
@@ -179,6 +180,11 @@ export interface BeefupConfig {
   mode: UpgradeMode;
   bannedRanges: string[];
   preferExact: boolean;
+  /**
+   * When true, leave `overrides` pins unchanged during stage.
+   * When false (default), rewrite and re-pin override targets like direct deps.
+   */
+  preserveOverrides: boolean;
   alignedGroups: AlignedGroup[];
   alignment?: AlignmentAction;
   /** One package root, or several paths/globs relative to the config directory. */
@@ -190,6 +196,7 @@ export const DEFAULT_CONFIG: BeefupConfig = {
   mode: UpgradeModes.SameMajor,
   bannedRanges: [BannedRangeTags.Latest, BannedRangeTags.Any],
   preferExact: true,
+  preserveOverrides: false,
   alignedGroups: [],
   alignment: AlignmentActions.Error,
 };
