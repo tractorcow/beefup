@@ -14,9 +14,9 @@ beefup stage --package-root ./app
 1. Detects npm or pnpm from the lockfile (`package-lock.json` or `pnpm-lock.yaml`). If both exist, it uses `packageManager` in `package.json`.
 2. Fails if Safe Chain is not available (`aikido-npm` / `aikido-pnpm`, or `safe-chain` on `PATH`), unless `--no-safe-chain` is set.
 3. Prepares an isolated workspace (`worktree` or `inplace`).
-4. Rewrites direct dependency specs for the chosen mode, skipping `workspace:`, `file:`, `link:`, and `catalog:`.
+4. Rewrites direct dependency specs for the chosen mode, skipping `workspace:`, `file:`, `link:`, and `catalog:`. By default, also rewrites `package.json#overrides` and `pnpm-workspace.yaml#overrides` the same way (exact `1.18.1` → `^1.18.1` in same-major). Pass `--preserve-overrides` or set `preserveOverrides: true` to leave overrides unchanged.
 5. Regenerates the lockfile only (`npm update --package-lock-only` or `pnpm update --lockfile-only`), with `--ignore-scripts`.
-6. Re-pins those direct dependencies to the exact versions in the new lockfile.
+6. Re-pins those direct dependencies (and, by default, override targets) to the exact versions in the new lockfile.
 7. Copies manifests and the lockfile to `.beefup/staged`.
 8. Deletes `.beefup/prior` if it exists, so only a proposal snapshot remains.
 9. Restores or discards the isolated workspace so the live tree matches the start state.
@@ -32,12 +32,13 @@ beefup stage --package-root ./app
 | `--package-root` | path | project root, or `packageRoot` in project config (repeatable) |
 | `--format` | `html`, `markdown`, `text` | `html` (file under `.beefup/report`; `report.json` is always written) |
 | `--no-safe-chain` | flag | off (require Safe Chain; with the flag, use npm/pnpm directly) |
+| `--preserve-overrides` | flag | off (rewrite and re-pin overrides like direct deps) |
 | `--quiet`, `-q` | flag | off (suppress warnings) |
 | `--verbose`, `-V` | flag | off (log major steps and timings to stderr) |
 | `--debug` | flag | off (also log git and subprocess commands) |
 | `--log-level` | `quiet`, `warn`, `info`, `debug` | `warn` |
 
-`--mode` overrides project config. `same-major` rewrites pins to `^<current>`. `latest` rewrites them to `>=<current>`. After lockfile regeneration, specs are re-pinned to exact versions.
+`--mode` overrides project config. `same-major` rewrites pins to `^<current>`. `latest` rewrites them to `>=<current>`. After lockfile regeneration, specs are re-pinned to exact versions. Override pins follow the same rewrite/re-pin path unless `--preserve-overrides` or config `preserveOverrides` is set.
 
 Run Beefup at the project (git) root. Use `--package-root ./app` (repeatable) or config `packageRoot` when `package.json` and the lockfile live in a subdirectory. `.beefup/` is written **inside each package root**. See [configuration](configuration.md).
 

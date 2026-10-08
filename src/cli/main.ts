@@ -128,6 +128,7 @@ export async function main(argv = process.argv): Promise<number> {
             strategy: args.strategy ?? StageStrategies.Worktree,
             format: args.format,
             noSafeChain: args.noSafeChain,
+            preserveOverrides: args.preserveOverrides,
           });
           emitReport(report, labeled);
           continue;

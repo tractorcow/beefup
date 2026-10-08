@@ -45,6 +45,7 @@ describe("loadConfig", () => {
         mode: UpgradeModes.SameMajor,
         packageRoot: ["apps/*"],
         preferExact: false,
+        preserveOverrides: true,
       });
       await writeJsonFile(path.join(dir, "package.json"), {
         name: "demo",
@@ -57,6 +58,18 @@ describe("loadConfig", () => {
       assert.equal(config.mode, UpgradeModes.Latest);
       assert.equal(config.packageRoot, "apps/web");
       assert.equal(config.preferExact, false);
+      assert.equal(config.preserveOverrides, true);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("defaults preserveOverrides to false", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-cfg-preserve-"));
+    try {
+      await writeJsonFile(path.join(dir, "package.json"), { name: "demo" });
+      const config = await loadConfig(dir);
+      assert.equal(config.preserveOverrides, false);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

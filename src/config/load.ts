@@ -60,6 +60,9 @@ function parsePartial(raw: unknown): Partial<BeefupConfig> {
   if (typeof input.preferExact === "boolean") {
     partial.preferExact = input.preferExact;
   }
+  if (typeof input.preserveOverrides === "boolean") {
+    partial.preserveOverrides = input.preserveOverrides;
+  }
   if (isAlignmentAction(input.alignment)) {
     partial.alignment = input.alignment;
   }
@@ -109,6 +112,9 @@ function mergePartials(partials: Partial<BeefupConfig>[]): Partial<BeefupConfig>
     }
     if (part.preferExact !== undefined) {
       merged.preferExact = part.preferExact;
+    }
+    if (part.preserveOverrides !== undefined) {
+      merged.preserveOverrides = part.preserveOverrides;
     }
     if (part.alignment !== undefined) {
       merged.alignment = part.alignment;
