@@ -201,8 +201,9 @@ export async function main(argv = process.argv): Promise<number> {
 
     if (failures.length > 0) {
       if (labeled) {
+        const failedRoots = failures.map((failure) => failure.relative).join(", ");
         getLogger().warn(
-          `${failures.length} of ${packageRoots.length} package roots failed`
+          `${failures.length} of ${packageRoots.length} package roots failed: ${failedRoots}`
         );
       }
       return 1;
