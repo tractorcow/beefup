@@ -129,9 +129,10 @@ function resolveVersion1(lockfile: NpmLockfile): Resolution {
 }
 
 /**
- * Builds a Resolution from an npm lockfileVersion 2/3 `packages` layout.
+ * Builds a Resolution from an npm lockfileVersion 2, 3, or 4 `packages` layout.
+ * Version 4 keeps that map and adds patch and manifest-repair metadata.
  */
-function resolveVersion2Or3(lockfile: NpmLockfile): Resolution {
+function resolvePackagesLayout(lockfile: NpmLockfile): Resolution {
   const dependencies: LockPackage[] = [];
   const devDependencies: LockPackage[] = [];
   if (lockfile.packages) {
@@ -166,10 +167,11 @@ export async function resolveNpmLockfile(filePath: string): Promise<Resolution> 
       return resolveVersion1(parsed);
     case 2:
     case 3:
-      return resolveVersion2Or3(parsed);
+    case 4:
+      return resolvePackagesLayout(parsed);
     default:
       throw new Error(
-        `Unsupported lockfileVersion: ${lockfileVersion}. Only versions 1, 2, and 3 are supported.`
+        `Unsupported lockfileVersion: ${lockfileVersion}. Only versions 1, 2, 3, and 4 are supported.`
       );
   }
 }
