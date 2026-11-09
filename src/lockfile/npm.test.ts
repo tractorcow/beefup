@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -11,6 +12,39 @@ const fixtures = path.join(
 );
 
 describe("npm lockfile resolver", () => {
+  it("reads lockfileVersion 4 packages, including patch and extension metadata", async () => {
+    const result = await resolveNpmLockfile(path.join(fixtures, "npm-v4.json"));
+    assert.deepEqual(
+      result.dependencies.find((pkg) => pkg.name === "express"),
+      {
+        name: "express",
+        version: "4.18.0",
+        path: "node_modules/express",
+      }
+    );
+    assert.deepEqual(
+      result.devDependencies.find((pkg) => pkg.name === "lodash"),
+      {
+        name: "lodash",
+        version: "4.17.21",
+        path: "node_modules/lodash",
+      }
+    );
+    assert.deepEqual(
+      result.dependencies.find((pkg) => pkg.name === "debug"),
+      {
+        name: "debug",
+        version: "4.3.4",
+        path: "node_modules/express/node_modules/debug",
+      }
+    );
+    const lock = parseNpmLockfile(
+      await readFile(path.join(fixtures, "npm-v4.json"), "utf8")
+    );
+    assert.equal(lockedVersionsFromNpm(lock, "apps/web").get("react"), "18.2.0");
+    assert.equal(lockedVersionsFromNpm(lock, "apps/web").get("express"), "4.18.0");
+  });
+
   it("extracts top-level and nested packages with install paths", async () => {
     const result = await resolveNpmLockfile(path.join(fixtures, "npm-basic.json"));
     assert.deepEqual(
