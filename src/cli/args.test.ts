@@ -255,9 +255,26 @@ describe("parseCliArgs", () => {
   it("lists verbosity flags in help text", () => {
     const help = showHelp();
     assert.match(help, new RegExp(CliOptionFlags.Quiet));
+    assert.match(help, new RegExp(CliOptionFlags.QuietPm));
     assert.match(help, new RegExp(CliOptionFlags.Verbose));
     assert.match(help, new RegExp(CliOptionFlags.Debug));
     assert.match(help, new RegExp(CliOptionFlags.LogLevel));
+  });
+
+  it("hides package-manager output only when --quiet-pm is set", () => {
+    assert.equal(
+      parseCliArgs(["node", "beefup", CliCommands.Stage]).quietPm,
+      false
+    );
+    assert.equal(
+      parseCliArgs([
+        "node",
+        "beefup",
+        CliCommands.Stage,
+        CliOptionFlags.QuietPm,
+      ]).quietPm,
+      true
+    );
   });
 
   it("lists html markdown and text report formats in help", () => {

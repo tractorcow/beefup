@@ -15,7 +15,7 @@ beefup stage --package-root ./app
 2. Fails if Safe Chain is not available (`aikido-npm` / `aikido-pnpm`, or `safe-chain` on `PATH`), unless `--no-safe-chain` is set.
 3. Prepares an isolated workspace (`worktree` or `inplace`).
 4. Rewrites direct dependency specs for the chosen mode, skipping `workspace:`, `file:`, `link:`, and `catalog:`. By default, also rewrites `package.json#overrides` and `pnpm-workspace.yaml#overrides` the same way (exact `1.18.1` → `^1.18.1` in same-major). Pass `--preserve-overrides` or set `preserveOverrides: true` to leave overrides unchanged.
-5. Regenerates the lockfile only (`npm update --package-lock-only` or `pnpm update --lockfile-only`), with `--ignore-scripts`.
+5. Regenerates the lockfile only (`npm update --package-lock-only` or `pnpm update --lockfile-only`), with `--ignore-scripts`. npm or pnpm output is shown while this runs. `--quiet-pm` hides it unless regeneration fails.
 6. Re-pins those direct dependencies (and, by default, override targets) to the exact versions in the new lockfile.
 7. Copies manifests and the lockfile to `.beefup/staged`.
 8. Deletes `.beefup/prior` if it exists, so only a proposal snapshot remains.
@@ -33,6 +33,7 @@ beefup stage --package-root ./app
 | `--format` | `html`, `markdown`, `text` | `html` (file under `.beefup/report`; `report.json` is always written) |
 | `--no-safe-chain` | flag | off (require Safe Chain; with the flag, use npm/pnpm directly) |
 | `--preserve-overrides` | flag | off (rewrite and re-pin overrides like direct deps) |
+| `--quiet-pm` | flag | off (show npm/pnpm output; the flag hides it unless lockfile regeneration fails) |
 | `--quiet`, `-q` | flag | off (suppress warnings) |
 | `--verbose`, `-V` | flag | off (log major steps and timings to stderr) |
 | `--debug` | flag | off (also log git and subprocess commands) |

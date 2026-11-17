@@ -27,6 +27,8 @@ export interface AcceptOptions {
   format?: ReportFormat;
   /** When true, skip Safe Chain and use npm/pnpm directly. */
   noSafeChain?: boolean;
+  /** When true, hide package-manager output unless the frozen install fails. */
+  quietPm?: boolean;
   runner?: ProcessRunner;
 }
 
@@ -99,6 +101,7 @@ export async function runAccept(options: AcceptOptions): Promise<AcceptResult> {
       packageManager: project.packageManager,
       cwd: packageRoot.absolute,
       runner,
+      stream: !options.quietPm,
     })
   );
 

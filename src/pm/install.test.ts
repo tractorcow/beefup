@@ -33,10 +33,15 @@ describe("frozenInstallArgs", () => {
 
 describe("installFromLockfile", () => {
   it("runs the frozen install argv through the protected package manager", async () => {
-    const calls: { bin: string; args: string[]; cwd: string }[] = [];
+    const calls: {
+      bin: string;
+      args: string[];
+      cwd: string;
+      stream?: boolean;
+    }[] = [];
     const runner: ProcessRunner = {
-      async run(bin, args, cwd) {
-        calls.push({ bin, args, cwd });
+      async run(bin, args, cwd, options) {
+        calls.push({ bin, args, cwd, stream: options?.stream });
         return { stdout: "", stderr: "", code: 0 };
       },
     };
@@ -51,7 +56,26 @@ describe("installFromLockfile", () => {
       bin: "aikido-pnpm",
       args: frozenInstallArgs(PackageManagers.Pnpm),
       cwd: "/tmp/project",
+      stream: true,
     });
+  });
+
+  it("captures installer output when streaming is disabled", async () => {
+    let stream: boolean | undefined;
+    const runner: ProcessRunner = {
+      async run(_bin, _args, _cwd, options) {
+        stream = options?.stream;
+        return { stdout: "", stderr: "", code: 0 };
+      },
+    };
+    await installFromLockfile({
+      pm: { bin: "aikido-npm", prefixArgs: [] },
+      packageManager: PackageManagers.Npm,
+      cwd: "/tmp/project",
+      runner,
+      stream: false,
+    });
+    assert.equal(stream, false);
   });
 
   it("throws when the installer exits non-zero", async () => {
@@ -68,7 +92,12 @@ describe("installFromLockfile", () => {
           cwd: "/tmp/project",
           runner,
         }),
-      BeefupError
+      (error: unknown) => {
+        assert.ok(error instanceof BeefupError);
+        assert.match(error.message, /frozen install failed/);
+        assert.match(error.message, /boom/);
+        return true;
+      }
     );
   });
 });

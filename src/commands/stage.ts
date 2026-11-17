@@ -31,6 +31,8 @@ export interface StageOptions {
   noSafeChain?: boolean;
   /** When true, leave override pins unchanged (overrides CLI/config default). */
   preserveOverrides?: boolean;
+  /** When true, hide package-manager output unless lockfile regeneration fails. */
+  quietPm?: boolean;
   runner?: ProcessRunner;
 }
 
@@ -93,6 +95,7 @@ export async function runStage(options: StageOptions): Promise<StageReport> {
         packageManager: project.packageManager,
         cwd: workspace.root,
         runner,
+        stream: !options.quietPm,
       })
     );
     await log.timed("re-pinning workspace", () =>

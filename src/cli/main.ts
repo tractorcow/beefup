@@ -129,6 +129,7 @@ export async function main(argv = process.argv): Promise<number> {
             format: args.format,
             noSafeChain: args.noSafeChain,
             preserveOverrides: args.preserveOverrides,
+            quietPm: args.quietPm,
           });
           emitReport(report, labeled);
           continue;
@@ -151,6 +152,7 @@ export async function main(argv = process.argv): Promise<number> {
             packageRoot: packageRoot.relative,
             format: args.format,
             noSafeChain: args.noSafeChain,
+            quietPm: args.quietPm,
           });
           if (labeled) {
             process.stdout.write(`${packageRootHeading(packageRoot.relative)}\n`);
@@ -169,6 +171,7 @@ export async function main(argv = process.argv): Promise<number> {
             packageRoot: packageRoot.relative,
             format: args.format,
             noSafeChain: args.noSafeChain,
+            quietPm: args.quietPm,
           });
           if (labeled) {
             process.stdout.write(`${packageRootHeading(packageRoot.relative)}\n`);

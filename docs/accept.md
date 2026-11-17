@@ -28,6 +28,7 @@ beefup accept --package-root ./app
 | `--package-root` | path | project root, or `packageRoot` in project config (repeatable) |
 | `--format` | `html`, `markdown`, `text` | `html` (file under `.beefup/report`) |
 | `--no-safe-chain` | flag | off (require Safe Chain; with the flag, use npm/pnpm directly) |
+| `--quiet-pm` | flag | off (show npm/pnpm output; the flag hides it unless the frozen install fails) |
 | `--quiet`, `-q` | flag | off (suppress warnings) |
 | `--verbose`, `-V` | flag | off (log major steps and timings to stderr) |
 | `--debug` | flag | off (also log git and subprocess commands) |

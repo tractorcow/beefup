@@ -30,6 +30,8 @@ export interface CliArgs {
   noSafeChain: boolean;
   /** When true, leave override pins unchanged during stage. */
   preserveOverrides: boolean;
+  /** When true, hide npm/pnpm output unless the command fails. */
+  quietPm: boolean;
   /** Stderr verbosity; default is warnings and errors only. */
   logLevel: LogLevel;
   help: boolean;
@@ -44,6 +46,7 @@ export function parseCliArgs(argv: string[]): CliArgs {
     format: ReportFormats.Html,
     noSafeChain: false,
     preserveOverrides: false,
+    quietPm: false,
     logLevel: DefaultLogLevel,
     help: false,
     version: false,
@@ -96,6 +99,8 @@ export function parseCliArgs(argv: string[]): CliArgs {
       args.noSafeChain = true;
     } else if (arg === CliOptionFlags.PreserveOverrides) {
       args.preserveOverrides = true;
+    } else if (arg === CliOptionFlags.QuietPm) {
+      args.quietPm = true;
     } else if (
       arg === CliOptionFlags.Quiet ||
       arg === CliOptionFlags.QuietShort
@@ -168,6 +173,7 @@ OPTIONS:
     ${CliOptionFlags.Format} ${Object.values(ReportFormats).join("|")}  Human-readable file under ${BEEFUP_DIR}/report (default: ${ReportFormats.Html}; ${ReportFileNames.Json} is always written)
     ${CliOptionFlags.NoSafeChain}            Bypass Safe Chain and use npm/pnpm directly
     ${CliOptionFlags.PreserveOverrides}       Leave package.json / workspace overrides unchanged during stage
+    ${CliOptionFlags.QuietPm}              Hide npm/pnpm output unless the command fails
     ${CliOptionFlags.Quiet}, ${CliOptionFlags.QuietShort}                Suppress warnings
     ${CliOptionFlags.Verbose}, ${CliOptionFlags.VerboseShort}            Log major steps to stderr
     ${CliOptionFlags.Debug}                   Log steps, timings, and subprocess commands
