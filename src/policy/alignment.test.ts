@@ -34,4 +34,32 @@ describe("findAlignmentIssues", () => {
     );
     assert.ok(findings.some((item) => item.message.includes("@strapi/admin")));
   });
+
+  it("ignores a group when the source package is not a direct dependency", () => {
+    const findings = findAlignmentIssues(
+      {
+        ...DEFAULT_CONFIG,
+        alignedGroups: [
+          {
+            name: "strapi",
+            source: "@strapi/strapi",
+            packages: ["@strapi/admin"],
+          },
+        ],
+      },
+      {
+        dependencies: {
+          "@strapi/admin": "5.50.0",
+        },
+      },
+      PackageManagers.Npm,
+      {
+        packages: {
+          "node_modules/@strapi/admin": { version: "5.50.0" },
+          "node_modules/@strapi/strapi": { version: "5.51.1" },
+        },
+      }
+    );
+    assert.deepEqual(findings, []);
+  });
 });
