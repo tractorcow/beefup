@@ -100,6 +100,7 @@ function collectLockVersions(
 
 /**
  * Checks one aligned group for package.json, override, and lockfile mismatches.
+ * Skips the group when its source package is not a direct dependency.
  */
 function checkGroup(
   group: AlignedGroup,
@@ -109,17 +110,12 @@ function checkGroup(
   workspaceOverrides: Record<string, unknown> | undefined,
   defaultAction: AlignmentAction
 ): AlignmentFinding[] {
-  const severity = group.onMismatch ?? defaultAction;
   const expected = expectedVersion(pkg, group.source);
-  const findings: AlignmentFinding[] = [];
   if (!expected) {
-    findings.push({
-      group: group.name,
-      severity,
-      message: `source package ${group.source} is not a direct dependency`,
-    });
-    return findings;
+    return [];
   }
+  const severity = group.onMismatch ?? defaultAction;
+  const findings: AlignmentFinding[] = [];
   if (/[^\d.]/.test(expected)) {
     findings.push({
       group: group.name,
