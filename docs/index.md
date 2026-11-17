@@ -22,6 +22,8 @@ Progress logs go to **stderr** so the report on stdout stays clean. Default is w
 
 Use `--verbose` or `--debug` when a command looks stuck (lockfile regeneration, frozen install, audit, `git show` of a large lockfile).
 
+npm and pnpm output from lockfile regeneration and frozen installs is shown on the terminal while the command runs. `--quiet-pm` hides that output and prints it only when the command fails. Audit and vulnerability-scan output stays captured either way.
+
 ## Contents
 
 - [Configuration](configuration.md) — `.beefup.json`, `package.json#beefup`, and `packageRoot`

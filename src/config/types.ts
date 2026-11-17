@@ -74,6 +74,7 @@ export const CliOptionFlags = {
   PreserveOverrides: "--preserve-overrides",
   Quiet: "--quiet",
   QuietShort: "-q",
+  QuietPm: "--quiet-pm",
   Verbose: "--verbose",
   VerboseShort: "-V",
   Debug: "--debug",

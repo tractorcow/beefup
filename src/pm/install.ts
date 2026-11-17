@@ -1,6 +1,6 @@
 import { BeefupError } from "../errors.js";
 import { PackageManagers, type PackageManager } from "../project/types.js";
-import type { ProcessRunner } from "./runner.js";
+import { formatRunFailure, type ProcessRunner } from "./runner.js";
 import type { ProtectedPm } from "./safe-chain.js";
 
 /**
@@ -27,15 +27,25 @@ export async function installFromLockfile(options: {
   packageManager: PackageManager;
   cwd: string;
   runner: ProcessRunner;
+  /**
+   * When false, capture package-manager output and include it only if the command fails.
+   * Defaults to showing output on the terminal.
+   */
+  stream?: boolean;
 }): Promise<void> {
   const args = [
     ...options.pm.prefixArgs,
     ...frozenInstallArgs(options.packageManager),
   ];
-  const result = await options.runner.run(options.pm.bin, args, options.cwd);
+  const result = await options.runner.run(options.pm.bin, args, options.cwd, {
+    stream: options.stream !== false,
+  });
   if (result.code !== 0) {
     throw new BeefupError(
-      `frozen install failed (${options.pm.bin} ${args.join(" ")}):\n${result.stderr || result.stdout}`
+      formatRunFailure(
+        `frozen install failed (${options.pm.bin} ${args.join(" ")})`,
+        result
+      )
     );
   }
 }
