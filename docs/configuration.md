@@ -14,7 +14,7 @@ Later sources win on conflict:
 4. Repo `pnpm-workspace.yaml#beefup`
 5. The package being upgraded: `package.json#beefup`
 6. That package’s `pnpm-workspace.yaml#beefup`
-7. CLI `--mode` (and `--preserve-overrides`, which forces preserve on when passed)
+7. CLI flags for the same fields. `--mode`, `--strategy`, `--format`, `--package-root`, and `--log-level` (also `--quiet`, `--verbose`, `--debug`) replace the configured value. `--preserve-overrides`, `--no-safe-chain`, and `--quiet-pm` force that option on.
 
 When the package root is `.`, the repo and package files are the same path and are not applied twice.
 
@@ -23,9 +23,14 @@ When the package root is `.`, the repo and package files are the same path and a
 ```json
 {
   "mode": "same-major",
+  "strategy": "worktree",
+  "format": "html",
+  "logLevel": "warn",
   "bannedRanges": ["latest", "*"],
   "preferExact": true,
   "preserveOverrides": false,
+  "noSafeChain": false,
+  "quietPm": false,
   "alignment": "error",
   "alignedGroups": [
     {
@@ -41,14 +46,21 @@ When the package root is `.`, the repo and package files are the same path and a
 | Field | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `mode` | `same-major`, `latest` | `same-major` | Constraint rewrite before lockfile regeneration. CLI `--mode` overrides this. |
+| `strategy` | `worktree`, `inplace` | `worktree` | Isolation strategy for `beefup stage`. CLI `--strategy` overrides this. `beefup report` keeps the strategy recorded on the last report when the flag is omitted. |
+| `format` | `html`, `markdown`, `text` | `html` | Human-readable report file under `.beefup/report`. `report.json` is always written. CLI `--format` overrides this. |
+| `logLevel` | `quiet`, `warn`, `info`, `debug` | `warn` | Stderr verbosity. CLI `--log-level`, `--quiet`, `--verbose`, and `--debug` override this. On a multi-root run the repo config is used. |
 | `bannedRanges` | string[] | `["latest", "*"]` | Dependency specs that fail policy after re-pin. |
 | `preferExact` | boolean | `true` | Warn when a leftover range such as `^1.2.3` remains. |
 | `preserveOverrides` | boolean | `false` | When `true`, leave `overrides` unchanged during stage. When `false`, rewrite and re-pin override targets like direct deps. CLI `--preserve-overrides` forces `true`. |
+| `noSafeChain` | boolean | `false` | When `true`, run npm or pnpm directly instead of through Safe Chain. CLI `--no-safe-chain` forces `true`. |
+| `quietPm` | boolean | `false` | When `true`, hide npm/pnpm output unless the command fails. CLI `--quiet-pm` forces `true`. |
 | `alignment` | `error`, `warn` | `error` | Default for aligned-group mismatches. |
 | `alignedGroups` | object[] | `[]` | Groups of packages that must share a version; `onMismatch` may override `alignment` per group. |
 | `packageRoot` | string or string[] | `.` | Package directories (literal paths or globs) relative to the config file. Each must contain `package.json` and a lockfile. |
 
 `.beefup.json` is the whole object. In `package.json` / `pnpm-workspace.yaml` the object is nested under `beefup`.
+
+The command name, a rewind git ref, `--dir`, `--help`, and `--version` are invocation arguments. They are not config fields.
 
 ## Package roots
 

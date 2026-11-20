@@ -9,6 +9,10 @@ import { loadConfig, loadConfigFromDir } from "./load.js";
 import {
   BannedRangeTags,
   BeefupConfigFileName,
+  DefaultLogLevel,
+  LogLevels,
+  ReportFormats,
+  StageStrategies,
   UpgradeModes,
 } from "./types.js";
 
@@ -46,12 +50,14 @@ describe("loadConfig", () => {
         packageRoot: ["apps/*"],
         preferExact: false,
         preserveOverrides: true,
+        format: ReportFormats.Text,
       });
       await writeJsonFile(path.join(dir, "package.json"), {
         name: "demo",
         beefup: {
           mode: UpgradeModes.Latest,
           packageRoot: "apps/web",
+          format: ReportFormats.Markdown,
         },
       });
       const config = await loadConfig(dir);
@@ -59,6 +65,11 @@ describe("loadConfig", () => {
       assert.equal(config.packageRoot, "apps/web");
       assert.equal(config.preferExact, false);
       assert.equal(config.preserveOverrides, true);
+      assert.equal(config.format, ReportFormats.Markdown);
+      assert.equal(config.strategy, StageStrategies.Worktree);
+      assert.equal(config.logLevel, DefaultLogLevel);
+      assert.equal(config.noSafeChain, false);
+      assert.equal(config.quietPm, false);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
@@ -85,6 +96,38 @@ describe("loadConfig", () => {
       const partial = await loadConfigFromDir(dir);
       assert.equal(partial.mode, UpgradeModes.Latest);
       assert.deepEqual(partial.packageRoot, ["apps/web", "apps/api"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("reads CLI settings from .beefup.json and ignores unknown values", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-cfg-cli-"));
+    try {
+      await writeJsonFile(path.join(dir, "package.json"), { name: "demo" });
+      await writeJsonFile(path.join(dir, BeefupConfigFileName), {
+        format: ReportFormats.Markdown,
+        strategy: StageStrategies.Inplace,
+        logLevel: LogLevels.Debug,
+        noSafeChain: true,
+        quietPm: true,
+      });
+      const config = await loadConfig(dir);
+      assert.equal(config.format, ReportFormats.Markdown);
+      assert.equal(config.strategy, StageStrategies.Inplace);
+      assert.equal(config.logLevel, LogLevels.Debug);
+      assert.equal(config.noSafeChain, true);
+      assert.equal(config.quietPm, true);
+
+      await writeJsonFile(path.join(dir, BeefupConfigFileName), {
+        format: "json",
+        strategy: "copy",
+        logLevel: "trace",
+      });
+      const ignored = await loadConfig(dir);
+      assert.equal(ignored.format, ReportFormats.Html);
+      assert.equal(ignored.strategy, StageStrategies.Worktree);
+      assert.equal(ignored.logLevel, DefaultLogLevel);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

@@ -26,13 +26,13 @@ beefup accept --package-root ./app
 | --- | --- | --- |
 | `--dir` | path | current working directory |
 | `--package-root` | path | project root, or `packageRoot` in project config (repeatable) |
-| `--format` | `html`, `markdown`, `text` | `html` (file under `.beefup/report`) |
-| `--no-safe-chain` | flag | off (require Safe Chain; with the flag, use npm/pnpm directly) |
-| `--quiet-pm` | flag | off (show npm/pnpm output; the flag hides it unless the frozen install fails) |
+| `--format` | `html`, `markdown`, `text` | config `format`, else `html` |
+| `--no-safe-chain` | flag | config `noSafeChain` (the flag forces Safe Chain off) |
+| `--quiet-pm` | flag | config `quietPm` (the flag hides npm/pnpm output unless the install fails) |
 | `--quiet`, `-q` | flag | off (suppress warnings) |
 | `--verbose`, `-V` | flag | off (log major steps and timings to stderr) |
 | `--debug` | flag | off (also log git and subprocess commands) |
-| `--log-level` | `quiet`, `warn`, `info`, `debug` | `warn` |
+| `--log-level` | `quiet`, `warn`, `info`, `debug` | config `logLevel`, else `warn` |
 
 `--mode` and `--strategy` are ignored. `--package-root` selects one or more package roots (or is taken from config). `--format` applies to the report written after accept. See [configuration](configuration.md).
 

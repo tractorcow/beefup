@@ -25,15 +25,16 @@ export interface CliArgs {
   strategy?: StageStrategyName;
   dir?: string;
   packageRoot?: string[];
-  format: ReportFormat;
+  /** Set only when `--format` is passed. Otherwise project config applies. */
+  format?: ReportFormat;
   /** When true, skip Safe Chain and use npm/pnpm directly. */
   noSafeChain: boolean;
   /** When true, leave override pins unchanged during stage. */
   preserveOverrides: boolean;
   /** When true, hide npm/pnpm output unless the command fails. */
   quietPm: boolean;
-  /** Stderr verbosity; default is warnings and errors only. */
-  logLevel: LogLevel;
+  /** Set only when a verbosity flag is passed. Otherwise project config applies. */
+  logLevel?: LogLevel;
   help: boolean;
   version: boolean;
 }
@@ -43,11 +44,9 @@ export interface CliArgs {
  */
 export function parseCliArgs(argv: string[]): CliArgs {
   const args: CliArgs = {
-    format: ReportFormats.Html,
     noSafeChain: false,
     preserveOverrides: false,
     quietPm: false,
-    logLevel: DefaultLogLevel,
     help: false,
     version: false,
   };
@@ -167,17 +166,17 @@ COMMANDS:
 
 OPTIONS:
     ${CliOptionFlags.Mode} ${UpgradeModes.SameMajor}|${UpgradeModes.Latest}     Upgrade mode (default: ${UpgradeModes.SameMajor}, or project config)
-    ${CliOptionFlags.Strategy} ${StageStrategies.Worktree}|${StageStrategies.Inplace}  Isolation strategy for ${CliCommands.Stage} (default: ${StageStrategies.Worktree})
+    ${CliOptionFlags.Strategy} ${StageStrategies.Worktree}|${StageStrategies.Inplace}  Isolation strategy for ${CliCommands.Stage} (default: config or ${StageStrategies.Worktree})
     ${CliOptionFlags.Dir} <path>                 Project directory (default: cwd)
     ${CliOptionFlags.PackageRoot} <path>       Directory with package.json and lockfile (repeatable; default: project root or config)
-    ${CliOptionFlags.Format} ${Object.values(ReportFormats).join("|")}  Human-readable file under ${BEEFUP_DIR}/report (default: ${ReportFormats.Html}; ${ReportFileNames.Json} is always written)
-    ${CliOptionFlags.NoSafeChain}            Bypass Safe Chain and use npm/pnpm directly
+    ${CliOptionFlags.Format} ${Object.values(ReportFormats).join("|")}  Human-readable file under ${BEEFUP_DIR}/report (default: config or ${ReportFormats.Html}; ${ReportFileNames.Json} is always written)
+    ${CliOptionFlags.NoSafeChain}            Bypass Safe Chain and use npm/pnpm directly (or config noSafeChain)
     ${CliOptionFlags.PreserveOverrides}       Leave package.json / workspace overrides unchanged during stage
-    ${CliOptionFlags.QuietPm}              Hide npm/pnpm output unless the command fails
+    ${CliOptionFlags.QuietPm}              Hide npm/pnpm output unless the command fails (or config quietPm)
     ${CliOptionFlags.Quiet}, ${CliOptionFlags.QuietShort}                Suppress warnings
     ${CliOptionFlags.Verbose}, ${CliOptionFlags.VerboseShort}            Log major steps to stderr
     ${CliOptionFlags.Debug}                   Log steps, timings, and subprocess commands
-    ${CliOptionFlags.LogLevel} ${Object.values(LogLevels).join("|")}  Log verbosity (default: ${DefaultLogLevel})
+    ${CliOptionFlags.LogLevel} ${Object.values(LogLevels).join("|")}  Log verbosity (default: config or ${DefaultLogLevel})
     -h, --help                   Show this help
     -v, --version                Show version
 

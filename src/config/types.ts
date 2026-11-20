@@ -186,6 +186,16 @@ export interface BeefupConfig {
    * When false (default), rewrite and re-pin override targets like direct deps.
    */
   preserveOverrides: boolean;
+  /** When true, skip Safe Chain and invoke npm or pnpm directly. */
+  noSafeChain: boolean;
+  /** When true, hide package-manager output unless the command fails. */
+  quietPm: boolean;
+  /** Isolation strategy for `beefup stage`. */
+  strategy: StageStrategyName;
+  /** Human-readable report file written under `.beefup/report`. */
+  format: ReportFormat;
+  /** Stderr verbosity for Beefup's own logs. */
+  logLevel: LogLevel;
   alignedGroups: AlignedGroup[];
   alignment?: AlignmentAction;
   /** One package root, or several paths/globs relative to the config directory. */
@@ -198,6 +208,11 @@ export const DEFAULT_CONFIG: BeefupConfig = {
   bannedRanges: [BannedRangeTags.Latest, BannedRangeTags.Any],
   preferExact: true,
   preserveOverrides: false,
+  noSafeChain: false,
+  quietPm: false,
+  strategy: StageStrategies.Worktree,
+  format: ReportFormats.Html,
+  logLevel: DefaultLogLevel,
   alignedGroups: [],
   alignment: AlignmentActions.Error,
 };

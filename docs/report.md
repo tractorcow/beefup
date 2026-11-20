@@ -39,14 +39,14 @@ Proposal reports appear after `stage`. Applied reports appear after `accept`, `r
 | --- | --- | --- |
 | `--dir` | path | current working directory |
 | `--package-root` | path | project root, or `packageRoot` in project config (repeatable) |
-| `--format` | `html`, `markdown`, `text` | `html` (file under `.beefup/report`; `report.json` is always written) |
+| `--format` | `html`, `markdown`, `text` | config `format`, else `html` (`report.json` is always written) |
 | `--mode` | `same-major`, `latest` | last report, else `same-major` / project config |
-| `--strategy` | `worktree`, `inplace` | last report, else `worktree` |
-| `--no-safe-chain` | flag | off (require Safe Chain; with the flag, use npm/pnpm directly) |
+| `--strategy` | `worktree`, `inplace` | last report, else config `strategy`, else `worktree` |
+| `--no-safe-chain` | flag | config `noSafeChain` (the flag forces Safe Chain off) |
 | `--quiet`, `-q` | flag | off (suppress warnings) |
 | `--verbose`, `-V` | flag | off (log major steps and timings to stderr) |
 | `--debug` | flag | off (also log git and subprocess commands) |
-| `--log-level` | `quiet`, `warn`, `info`, `debug` | `warn` |
+| `--log-level` | `quiet`, `warn`, `info`, `debug` | config `logLevel`, else `warn` |
 
 `--format` selects only the human-readable file. It does not change stdout. `--mode` and `--strategy` are recorded on the report for later runs. They do not re-run the upgrade. `--package-root` is used when set; otherwise Beefup uses config `packageRoot` or `.`. See [configuration](configuration.md).
 

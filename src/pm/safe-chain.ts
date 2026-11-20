@@ -58,6 +58,22 @@ async function which(bin: string): Promise<string | undefined> {
   }
 }
 
+/** Avoids repeating the unprotected-install warning for every package root. */
+let announcedUnprotectedPm = false;
+
+/**
+ * Warns once per process when Beefup will invoke npm or pnpm without Safe Chain.
+ */
+function warnUnprotectedPm(): void {
+  if (announcedUnprotectedPm) {
+    return;
+  }
+  announcedUnprotectedPm = true;
+  getLogger().warn(
+    `Safe Chain is disabled (${CliOptionFlags.NoSafeChain} or config noSafeChain); lockfile updates and installs run through unprotected npm/pnpm`
+  );
+}
+
 /**
  * Locates a Safe Chain–protected package manager binary and prefix args.
  * With `noSafeChain`, uses the raw npm/pnpm binary instead of requiring a wrapper.
@@ -69,6 +85,7 @@ export async function resolveProtectedPm(
   options: ResolveProtectedPmOptions = {}
 ): Promise<ProtectedPm> {
   if (options.noSafeChain) {
+    warnUnprotectedPm();
     const pm = await resolveRawPm(packageManager);
     getLogger().debug(`using unprotected ${pm.bin}`);
     return pm;

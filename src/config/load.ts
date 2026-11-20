@@ -9,9 +9,14 @@ import type { PackageJson } from "../project/package-json.js";
 import {
   BeefupConfigFileName,
   DEFAULT_CONFIG,
+  DefaultLogLevel,
   isAlignmentAction,
+  isLogLevel,
+  isReportFormat,
+  isStageStrategy,
   isUpgradeMode,
   type BeefupConfig,
+  type LogLevel,
   type UpgradeMode,
 } from "./types.js";
 
@@ -62,6 +67,21 @@ function parsePartial(raw: unknown): Partial<BeefupConfig> {
   }
   if (typeof input.preserveOverrides === "boolean") {
     partial.preserveOverrides = input.preserveOverrides;
+  }
+  if (typeof input.noSafeChain === "boolean") {
+    partial.noSafeChain = input.noSafeChain;
+  }
+  if (typeof input.quietPm === "boolean") {
+    partial.quietPm = input.quietPm;
+  }
+  if (isStageStrategy(input.strategy)) {
+    partial.strategy = input.strategy;
+  }
+  if (isReportFormat(input.format)) {
+    partial.format = input.format;
+  }
+  if (isLogLevel(input.logLevel)) {
+    partial.logLevel = input.logLevel;
   }
   if (isAlignmentAction(input.alignment)) {
     partial.alignment = input.alignment;
@@ -115,6 +135,21 @@ function mergePartials(partials: Partial<BeefupConfig>[]): Partial<BeefupConfig>
     }
     if (part.preserveOverrides !== undefined) {
       merged.preserveOverrides = part.preserveOverrides;
+    }
+    if (part.noSafeChain !== undefined) {
+      merged.noSafeChain = part.noSafeChain;
+    }
+    if (part.quietPm !== undefined) {
+      merged.quietPm = part.quietPm;
+    }
+    if (part.strategy !== undefined) {
+      merged.strategy = part.strategy;
+    }
+    if (part.format !== undefined) {
+      merged.format = part.format;
+    }
+    if (part.logLevel !== undefined) {
+      merged.logLevel = part.logLevel;
     }
     if (part.alignment !== undefined) {
       merged.alignment = part.alignment;
@@ -216,4 +251,29 @@ export async function loadConfig(
     merged.mode = modeOverride;
   }
   return merged;
+}
+
+/**
+ * Chooses stderr verbosity for this process.
+ * An explicit CLI level wins. One package root uses that package's merged
+ * config; several roots use the repo config so one package cannot change
+ * logging for the others.
+ */
+export async function resolveLogLevel(options: {
+  projectRoot: string;
+  packageRoots: { absolute: string }[];
+  cliLogLevel?: LogLevel;
+}): Promise<LogLevel> {
+  if (options.cliLogLevel) {
+    return options.cliLogLevel;
+  }
+  if (options.packageRoots.length === 1) {
+    const config = await loadConfig(
+      options.projectRoot,
+      options.packageRoots[0].absolute
+    );
+    return config.logLevel;
+  }
+  const repo = await loadConfigFromDir(options.projectRoot);
+  return repo.logLevel ?? DefaultLogLevel;
 }

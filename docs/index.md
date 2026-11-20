@@ -10,7 +10,7 @@ Run Beefup from the project root (the git root, or `--dir`). Use `--package-root
 
 ## Logging
 
-Progress logs go to **stderr** so the report on stdout stays clean. Default is warnings and errors only.
+Progress logs go to **stderr** so the report on stdout stays clean. The default is warnings and errors only, or `logLevel` in project config. A CLI verbosity flag overrides that.
 
 | Option | Level | What it prints |
 | --- | --- | --- |

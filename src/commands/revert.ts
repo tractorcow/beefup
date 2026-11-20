@@ -1,6 +1,7 @@
 import path from "node:path";
 
-import { CliCommands, ReportFormats, type ReportFormat } from "../config/types.js";
+import { loadConfig } from "../config/load.js";
+import { CliCommands, type ReportFormat } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { pathExists } from "../fsutil.js";
 import { getLogger } from "../log.js";
@@ -56,8 +57,12 @@ export async function runRevert(options: RevertOptions): Promise<RevertResult> {
     );
   }
 
+  const config = await loadConfig(projectRoot, packageRoot.absolute);
+  const noSafeChain = options.noSafeChain === true || config.noSafeChain;
+  const quietPm = options.quietPm === true || config.quietPm;
+  const format = options.format ?? config.format;
   const protectedPm = await resolveProtectedPm(project.packageManager, {
-    noSafeChain: options.noSafeChain,
+    noSafeChain,
   });
   if (project.packageManager === PackageManagers.Npm) {
     await assertNpmVersion(protectedPm);
@@ -77,7 +82,7 @@ export async function runRevert(options: RevertOptions): Promise<RevertResult> {
       packageManager: project.packageManager,
       cwd: packageRoot.absolute,
       runner,
-      stream: !options.quietPm,
+      stream: !quietPm,
     })
   );
 
@@ -85,9 +90,9 @@ export async function runRevert(options: RevertOptions): Promise<RevertResult> {
     runReport({
       projectRoot,
       packageRoot: packageRoot.relative,
-      format: options.format ?? ReportFormats.Html,
+      format,
       runner,
-      noSafeChain: options.noSafeChain,
+      noSafeChain,
     })
   );
 

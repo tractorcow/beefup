@@ -25,8 +25,10 @@ export interface StageOptions {
   /** Directory with package.json and the lockfile, relative to the project root. */
   packageRoot?: string;
   mode?: UpgradeMode;
-  strategy: StageStrategyName;
-  format: ReportFormat;
+  /** Overrides config `strategy` when set. */
+  strategy?: StageStrategyName;
+  /** Overrides config `format` when set. */
+  format?: ReportFormat;
   /** When true, skip Safe Chain and use npm/pnpm directly. */
   noSafeChain?: boolean;
   /** When true, leave override pins unchanged (overrides CLI/config default). */
@@ -56,18 +58,22 @@ export async function runStage(options: StageOptions): Promise<StageReport> {
   );
   const preserveOverrides =
     options.preserveOverrides === true || config.preserveOverrides;
+  const strategyName = options.strategy ?? config.strategy;
+  const format = options.format ?? config.format;
+  const noSafeChain = options.noSafeChain === true || config.noSafeChain;
+  const quietPm = options.quietPm === true || config.quietPm;
   log.info(
-    `staging ${packageRoot.relative} with ${project.packageManager} (${options.strategy}, ${config.mode})`
+    `staging ${packageRoot.relative} with ${project.packageManager} (${strategyName}, ${config.mode})`
   );
   const protectedPm = await resolveProtectedPm(project.packageManager, {
-    noSafeChain: options.noSafeChain,
+    noSafeChain,
   });
   if (project.packageManager === PackageManagers.Npm) {
     await assertNpmVersion(protectedPm);
   }
 
   const strategy = createStageStrategy(
-    options.strategy,
+    strategyName,
     projectRoot,
     project.lockfileName,
     packageRoot.absolute
@@ -95,7 +101,7 @@ export async function runStage(options: StageOptions): Promise<StageReport> {
         packageManager: project.packageManager,
         cwd: workspace.root,
         runner,
-        stream: !options.quietPm,
+        stream: !quietPm,
       })
     );
     await log.timed("re-pinning workspace", () =>
@@ -125,11 +131,11 @@ export async function runStage(options: StageOptions): Promise<StageReport> {
       projectRoot,
       packageRoot: packageRoot.relative,
       mode: config.mode,
-      strategy: options.strategy,
-      format: options.format,
+      strategy: strategyName,
+      format,
       runner,
       comparison: ReportComparisons.Proposal,
-      noSafeChain: options.noSafeChain,
+      noSafeChain,
     })
   );
 }

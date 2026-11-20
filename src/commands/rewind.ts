@@ -32,7 +32,8 @@ export interface RewindOptions {
   projectRoot: string;
   packageRoot?: string;
   gitRef: string;
-  format: ReportFormat;
+  /** Overrides config `format` when set. */
+  format?: ReportFormat;
   /** When true, skip Safe Chain and use npm/pnpm directly. */
   noSafeChain?: boolean;
   runner?: ProcessRunner;

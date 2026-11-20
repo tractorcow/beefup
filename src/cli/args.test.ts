@@ -13,14 +13,14 @@ import { BeefupError } from "../errors.js";
 import { parseCliArgs, showHelp } from "./args.js";
 
 describe("parseCliArgs", () => {
-  it("defaults to html format and leaves strategy unset", () => {
+  it("leaves format, strategy, and log level unset until a flag is passed", () => {
     const args = parseCliArgs(["node", "beefup", CliCommands.Stage]);
     assert.equal(args.command, CliCommands.Stage);
     assert.equal(args.strategy, undefined);
-    assert.equal(args.format, ReportFormats.Html);
+    assert.equal(args.format, undefined);
     assert.equal(args.mode, undefined);
     assert.equal(args.noSafeChain, false);
-    assert.equal(args.logLevel, LogLevels.Warn);
+    assert.equal(args.logLevel, undefined);
   });
 
   it("parses --no-safe-chain", () => {
