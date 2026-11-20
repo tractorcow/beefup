@@ -7,12 +7,12 @@ import { printReport, runReport } from "../commands/report.js";
 import { runRevert } from "../commands/revert.js";
 import { runRewind } from "../commands/rewind.js";
 import { runStage } from "../commands/stage.js";
+import { resolveLogLevel } from "../config/load.js";
 import {
   CliCommands,
-  CliOptionFlags,
+  DefaultLogLevel,
   DefaultPackageRoot,
   ReportComparisons,
-  StageStrategies,
 } from "../config/types.js";
 import { BeefupError } from "../errors.js";
 import { createLogger, getLogger, setLogger } from "../log.js";
@@ -79,7 +79,7 @@ function formatCommandError(error: unknown): string {
 export async function main(argv = process.argv): Promise<number> {
   try {
     const args = parseCliArgs(argv);
-    setLogger(createLogger({ level: args.logLevel }));
+    setLogger(createLogger({ level: args.logLevel ?? DefaultLogLevel }));
     if (args.version) {
       console.log(await readVersion());
       return 0;
@@ -106,16 +106,22 @@ export async function main(argv = process.argv): Promise<number> {
       cliPackageRoots: args.packageRoot,
       gitRoot,
     });
+    if (args.logLevel === undefined) {
+      setLogger(
+        createLogger({
+          level: await resolveLogLevel({
+            projectRoot,
+            packageRoots,
+            cliLogLevel: args.logLevel,
+          }),
+        })
+      );
+    }
     const log = getLogger();
     const labeled = packageRoots.length > 1;
     log.debug(
-      `${args.command} log-level=${args.logLevel} projectRoot=${projectRoot} packageRoots=${packageRoots.map((root) => root.relative).join(",")}`
+      `${args.command} log-level=${log.level} projectRoot=${projectRoot} packageRoots=${packageRoots.map((root) => root.relative).join(",")}`
     );
-    if (args.noSafeChain) {
-      log.warn(
-        `${CliOptionFlags.NoSafeChain} suppresses Safe Chain; lockfile updates and installs run through unprotected npm/pnpm`
-      );
-    }
 
     const failures: { relative: string; message: string }[] = [];
     for (const packageRoot of packageRoots) {
@@ -125,7 +131,7 @@ export async function main(argv = process.argv): Promise<number> {
             projectRoot,
             packageRoot: packageRoot.relative,
             mode: args.mode,
-            strategy: args.strategy ?? StageStrategies.Worktree,
+            strategy: args.strategy,
             format: args.format,
             noSafeChain: args.noSafeChain,
             preserveOverrides: args.preserveOverrides,

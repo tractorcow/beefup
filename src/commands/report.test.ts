@@ -7,6 +7,7 @@ import { describe, it } from "node:test";
 import { withSafeChainStubs } from "../__tests__/with-safe-chain-stubs.js";
 import { runReport } from "../commands/report.js";
 import {
+  BeefupConfigFileName,
   DefaultPackageRoot,
   ReportComparisons,
   ReportFormats,
@@ -157,6 +158,52 @@ describe("runReport", () => {
         assert.equal(json.strategy, StageStrategies.Inplace);
         assert.ok(json.generatedAt);
         assert.ok(json.beefupVersion);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  it("uses the format from .beefup.json when the option is omitted", async () => {
+    await withSafeChainStubs(async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-report-cfg-"));
+      await seedStagedProject(dir);
+      await writeJsonFile(path.join(dir, BeefupConfigFileName), {
+        format: ReportFormats.Text,
+      });
+      try {
+        await runReport({
+          projectRoot: dir,
+          runner,
+        });
+        const reports = path.join(dir, BEEFUP_DIR, "report");
+        assert.equal(await pathExists(path.join(reports, ReportFileNames.Text)), true);
+        assert.equal(await pathExists(path.join(reports, ReportFileNames.Html)), false);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  it("lets an explicit format override .beefup.json", async () => {
+    await withSafeChainStubs(async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), "beefup-report-cfg-override-"));
+      await seedStagedProject(dir);
+      await writeJsonFile(path.join(dir, BeefupConfigFileName), {
+        format: ReportFormats.Text,
+      });
+      try {
+        await runReport({
+          projectRoot: dir,
+          format: ReportFormats.Markdown,
+          runner,
+        });
+        const reports = path.join(dir, BEEFUP_DIR, "report");
+        assert.equal(
+          await pathExists(path.join(reports, ReportFileNames.Markdown)),
+          true
+        );
+        assert.equal(await pathExists(path.join(reports, ReportFileNames.Text)), false);
       } finally {
         await rm(dir, { recursive: true, force: true });
       }

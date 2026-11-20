@@ -9,7 +9,6 @@ import {
   isUpgradeMode,
   ReportComparisons,
   ReportFormats,
-  StageStrategies,
   type ReportComparison,
   type ReportFormat,
   type StageStrategyName,
@@ -48,7 +47,8 @@ export interface ReportOptions {
   packageRoot?: string;
   mode?: UpgradeMode;
   strategy?: StageStrategyName;
-  format: ReportFormat;
+  /** Overrides config `format` when set. */
+  format?: ReportFormat;
   runner?: ProcessRunner;
   /** Force proposal or applied trees; otherwise auto-selected. */
   comparison?: ReportComparison;
@@ -137,13 +137,15 @@ export async function runReport(options: ReportOptions): Promise<StageReport> {
     packageRoot.absolute,
     options.mode ?? parseUpgradeMode(previous?.mode)
   );
+  const format = options.format ?? config.format;
+  const noSafeChain = options.noSafeChain === true || config.noSafeChain;
   const strategy =
     options.strategy ??
     parseStrategy(previous?.strategy) ??
-    StageStrategies.Worktree;
+    config.strategy;
 
   const protectedPm = await resolveProtectedPm(project.packageManager, {
-    noSafeChain: options.noSafeChain,
+    noSafeChain,
   });
   if (project.packageManager === PackageManagers.Npm) {
     await assertNpmVersion(protectedPm);
@@ -228,7 +230,7 @@ export async function runReport(options: ReportOptions): Promise<StageReport> {
 
   await log.timed("writing report files", async () => {
     await mkdir(reports, { recursive: true });
-    const humanFile = DiskReportFileByFormat[options.format];
+    const humanFile = DiskReportFileByFormat[format];
     for (const name of HumanReportFileNames) {
       if (name !== humanFile) {
         await removePath(path.join(reports, name));
@@ -236,7 +238,7 @@ export async function runReport(options: ReportOptions): Promise<StageReport> {
     }
     await writeFile(
       path.join(reports, humanFile),
-      renderDiskReport(report, options.format),
+      renderDiskReport(report, format),
       "utf8"
     );
     await writeFile(

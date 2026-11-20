@@ -27,17 +27,17 @@ beefup stage --package-root ./app
 | Option | Values | Default |
 | --- | --- | --- |
 | `--mode` | `same-major`, `latest` | `same-major`, or `beefup.mode` in project config |
-| `--strategy` | `worktree`, `inplace` | `worktree` |
+| `--strategy` | `worktree`, `inplace` | config `strategy`, else `worktree` |
 | `--dir` | path | current working directory |
 | `--package-root` | path | project root, or `packageRoot` in project config (repeatable) |
-| `--format` | `html`, `markdown`, `text` | `html` (file under `.beefup/report`; `report.json` is always written) |
-| `--no-safe-chain` | flag | off (require Safe Chain; with the flag, use npm/pnpm directly) |
-| `--preserve-overrides` | flag | off (rewrite and re-pin overrides like direct deps) |
-| `--quiet-pm` | flag | off (show npm/pnpm output; the flag hides it unless lockfile regeneration fails) |
+| `--format` | `html`, `markdown`, `text` | config `format`, else `html` (`report.json` is always written) |
+| `--no-safe-chain` | flag | config `noSafeChain` (the flag forces Safe Chain off) |
+| `--preserve-overrides` | flag | config `preserveOverrides` (the flag forces preserve on) |
+| `--quiet-pm` | flag | config `quietPm` (the flag hides npm/pnpm output unless regeneration fails) |
 | `--quiet`, `-q` | flag | off (suppress warnings) |
 | `--verbose`, `-V` | flag | off (log major steps and timings to stderr) |
 | `--debug` | flag | off (also log git and subprocess commands) |
-| `--log-level` | `quiet`, `warn`, `info`, `debug` | `warn` |
+| `--log-level` | `quiet`, `warn`, `info`, `debug` | config `logLevel`, else `warn` |
 
 `--mode` overrides project config. `same-major` rewrites pins to `^<current>`. `latest` rewrites them to `>=<current>`. After lockfile regeneration, specs are re-pinned to exact versions. Override pins follow the same rewrite/re-pin path unless `--preserve-overrides` or config `preserveOverrides` is set.
 
